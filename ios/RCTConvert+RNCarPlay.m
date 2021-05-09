@@ -10,6 +10,7 @@
 #import <React/RCTConvert+CoreLocation.h>
 #import <Availability.h>
 
+API_AVAILABLE(ios(12.0))
 @implementation RCTConvert (RNCarPlay)
 
 RCT_ENUM_CONVERTER(CPTripEstimateStyle, (@{
@@ -62,7 +63,7 @@ RCT_ENUM_CONVERTER(CPPanDirection, (@{
     return [[CPRouteChoice alloc] initWithSummaryVariants:[RCTConvert NSStringArray:json[@"additionalInformationVariants"]] additionalInformationVariants:[RCTConvert NSStringArray:json[@"selectionSummaryVariants"]] selectionSummaryVariants:[RCTConvert NSStringArray:json[@"summaryVariants"]]];
 }
 
-+ (CPPointOfInterest*)CPPointOfInterest:(id)json {
++ (CPPointOfInterest*)CPPointOfInterest:(id)json API_AVAILABLE(ios(14.0)){
     MKMapItem *location = [RCTConvert MKMapItem:json[@"location"]];
     NSString *title = [RCTConvert NSString:json[@"title"]];
     NSString *subtitle = [RCTConvert NSString:json[@"subtitle"]];
