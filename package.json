@@ -1,5 +1,5 @@
 {
-  "name": "react-native-carplay",
+  "name": "@spicysparks/react-native-carplay",
   "version": "2.0.0",
   "description": "CarPlay for React Native",
   "main": "lib/index.js",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/birkir/react-native-carplay.git"
+    "url": "git+https://github.com/Spicy-Sparks/react-native-carplay.git"
   },
   "keywords": [
     "react",
@@ -34,9 +34,9 @@
   "author": "Birkir Gudjonsson <birkir.gudjonsson@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/birkir/react-native-carplay/issues"
+    "url": "https://github.com/Spicy-Sparks/react-native-carplay/issues"
   },
-  "homepage": "https://github.com/birkir/react-native-carplay#readme",
+  "homepage": "https://github.com/Spicy-Sparks/react-native-carplay#readme",
   "devDependencies": {
     "@types/node": "14.14.35",
     "@types/react-native": "0.63.52",
