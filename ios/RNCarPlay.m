@@ -169,6 +169,13 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
                 [listTemplate setBackButton:backButton];
                 listTemplate.delegate = self;
                 template = listTemplate;
+            }else{
+                NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]]];
+                    CPListTemplate *listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
+                    [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+                    [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+                    listTemplate.delegate = self;
+                    template = listTemplate;
             }
         }
         else if ([type isEqualToString:@"map"]) {
@@ -439,6 +446,17 @@ RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated
         } else {
             NSLog(@"Failed to find template %@", template);
         }
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+
+        store.interfaceController.delegate = self;
+
+        if (template) {
+            [store.interfaceController setRootTemplate:template animated:animated];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
@@ -451,6 +469,14 @@ RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
                 NSLog(@"error %@", err);
                 // noop
             }];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            [store.interfaceController pushTemplate:template animated:animated];
         } else {
             NSLog(@"Failed to find template %@", template);
         }
@@ -469,6 +495,14 @@ RCT_EXPORT_METHOD(popToTemplate:(NSString *)templateId animated:(BOOL)animated) 
         } else {
             NSLog(@"Failed to find template %@", template);
         }
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            [store.interfaceController popToTemplate:template animated:animated];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
@@ -479,6 +513,9 @@ RCT_EXPORT_METHOD(popToRootTemplate:(BOOL)animated) {
             NSLog(@"error %@", err);
             // noop
         }];
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        [store.interfaceController popToRootTemplateAnimated:animated];
     }
 }
 
@@ -489,6 +526,9 @@ RCT_EXPORT_METHOD(popTemplate:(BOOL)animated) {
             NSLog(@"error %@", err);
             // noop
         }];
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        [store.interfaceController popTemplateAnimated:animated];
     }
 }
 
@@ -501,6 +541,14 @@ RCT_EXPORT_METHOD(presentTemplate:(NSString *)templateId animated:(BOOL)animated
                 NSLog(@"error %@", err);
                 // noop
             }];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
+    }else{
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            [store.interfaceController presentTemplate:template animated:animated];
         } else {
             NSLog(@"Failed to find template %@", template);
         }
@@ -741,6 +789,8 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }
     return result;
 }
+
+
 
 - (NSArray<CPBarButton*>*) parseBarButtons:(NSArray*)barButtons templateId:(NSString *)templateId  API_AVAILABLE(ios(12.0)){
     NSMutableArray *result = [NSMutableArray array];
