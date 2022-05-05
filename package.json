@@ -1,5 +1,5 @@
 {
-  "name": "@spicysparks/react-native-carplay",
+  "name": "react-native-carplay",
   "version": "2.0.0",
   "description": "CarPlay for React Native",
   "main": "lib/index.js",
