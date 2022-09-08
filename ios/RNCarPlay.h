@@ -1,11 +1,3 @@
-//
-//  RNCarPlay.h
-//  RNCarPlay
-//
-//  Created by Birkir Gudjonsson on 3/25/19.
-//  Copyright © 2019 SOLID Mobile. All rights reserved.
-//
-
 #import <Foundation/Foundation.h>
 #import <CarPlay/CarPlay.h>
 #import <React/RCTBridgeModule.h>
@@ -23,6 +15,7 @@ API_AVAILABLE(ios(12.0))
     CPWindow *window;
     SearchResultUpdateBlock searchResultBlock;
     SelectedResultBlock selectedResultBlock;
+    BOOL isNowPlayingActive;
 }
 
 @property (nonatomic, retain) CPInterfaceController *interfaceController API_AVAILABLE(ios(12.0));
