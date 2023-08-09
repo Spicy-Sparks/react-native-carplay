@@ -34,6 +34,7 @@
     store.interfaceController = interfaceController;
     store.window = window;
     [store setConnected:true];
+
     RNCarPlay *cp = [RNCarPlay allocWithZone:nil];
     if (cp.bridge) {
         [cp sendEventWithName:@"didConnect" body:[self getConnectedWindowInformation:window]];
@@ -193,6 +194,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         carPlayTemplate = gridTemplate;
     }
     else if ([type isEqualToString:@"list"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]]];
         CPListTemplate *listTemplate;
         if (@available(iOS 15.0, *)) {
@@ -212,28 +214,30 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
         [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
         if (![RCTConvert BOOL:config[@"backButtonHidden"]]) {
-            if (@available(iOS 14.0, *)) {
-                CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
+            CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
                     if (hasListeners) {
                         [self sendEventWithName:@"backButtonPressed" body:@{@"templateId":templateId}];
                     }
-                    [self popTemplate:false];
-                }];
-                [listTemplate setBackButton:backButton];
-            }
+                [self popTemplate:false];
+            }];
+            [listTemplate setBackButton:backButton];
         }
         if (config[@"emptyViewTitleVariants"]) {
-            if (@available(iOS 14.0, *)) {
-                listTemplate.emptyViewTitleVariants = [RCTConvert NSArray:config[@"emptyViewTitleVariants"]];
-            }
+            listTemplate.emptyViewTitleVariants = [RCTConvert NSArray:config[@"emptyViewTitleVariants"]];
         }
         if (config[@"emptyViewSubtitleVariants"]) {
-            if (@available(iOS 14.0, *)) {
-                listTemplate.emptyViewSubtitleVariants = [RCTConvert NSArray:config[@"emptyViewSubtitleVariants"]];
-            }
+            listTemplate.emptyViewSubtitleVariants = [RCTConvert NSArray:config[@"emptyViewSubtitleVariants"]];
         }
         listTemplate.delegate = self;
         carPlayTemplate = listTemplate;
+        #else
+        NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]]];
+        CPListTemplate *listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
+        [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+        [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+        listTemplate.delegate = self;
+        carPlayTemplate = listTemplate;
+        #endif
     }
     else if ([type isEqualToString:@"map"]) {
         CPMapTemplate *mapTemplate = [[CPMapTemplate alloc] init];
@@ -249,6 +253,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         CPVoiceControlTemplate *voiceTemplate = [[CPVoiceControlTemplate alloc] initWithVoiceControlStates: [self parseVoiceControlStates:config[@"voiceControlStates"]]];
         carPlayTemplate = voiceTemplate;
     } else if ([type isEqualToString:@"nowplaying"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         CPNowPlayingTemplate *nowPlayingTemplate = [CPNowPlayingTemplate sharedTemplate];
         [nowPlayingTemplate setAlbumArtistButtonEnabled:[RCTConvert BOOL:config[@"albumArtistButtonEnabled"]]];
         [nowPlayingTemplate setUpNextTitle:[RCTConvert NSString:config[@"upNextButtonTitle"]]];
@@ -280,11 +285,15 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         }
         [nowPlayingTemplate updateNowPlayingButtons:buttons];
         carPlayTemplate = nowPlayingTemplate;
+        #endif
     } else if ([type isEqualToString:@"tabbar"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         CPTabBarTemplate *tabBarTemplate = [[CPTabBarTemplate alloc] initWithTemplates:[self parseTemplatesFrom:config]];
         tabBarTemplate.delegate = self;
         carPlayTemplate = tabBarTemplate;
+        #endif
     } else if ([type isEqualToString:@"contact"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         NSString *nm = [RCTConvert NSString:config[@"name"]];
         UIImage *img = [RCTConvert UIImage:config[@"image"]];
         CPContact *contact = [[CPContact alloc] initWithName:nm image:img];
@@ -292,6 +301,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         [contact setActions:[self parseButtons:config[@"actions"] templateId:templateId]];
         CPContactTemplate *contactTemplate = [[CPContactTemplate alloc] initWithContact:contact];
         carPlayTemplate = contactTemplate;
+        #endif
     } else if ([type isEqualToString:@"actionsheet"]) {
         NSString *title = [RCTConvert NSString:config[@"title"]];
         NSString *message = [RCTConvert NSString:config[@"message"]];
@@ -322,6 +332,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         CPAlertTemplate *alertTemplate = [[CPAlertTemplate alloc] initWithTitleVariants:titleVariants actions:actions];
         carPlayTemplate = alertTemplate;
     } else if ([type isEqualToString:@"poi"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         NSString *title = [RCTConvert NSString:config[@"title"]];
         NSMutableArray<__kindof CPPointOfInterest *> * items = [NSMutableArray new];
         NSUInteger selectedIndex = 0;
@@ -336,7 +347,9 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         CPPointOfInterestTemplate *poiTemplate = [[CPPointOfInterestTemplate alloc] initWithTitle:title pointsOfInterest:items selectedIndex:selectedIndex];
         poiTemplate.pointOfInterestDelegate = self;
         carPlayTemplate = poiTemplate;
+        #endif
     } else if ([type isEqualToString:@"information"]) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         NSString *title = [RCTConvert NSString:config[@"title"]];
         CPInformationTemplateLayout layout = [RCTConvert BOOL:config[@"leading"]] ? CPInformationTemplateLayoutLeading : CPInformationTemplateLayoutTwoColumn;
         NSMutableArray<__kindof CPInformationItem *> * items = [NSMutableArray new];
@@ -359,8 +372,10 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
 
         CPInformationTemplate *informationTemplate = [[CPInformationTemplate alloc] initWithTitle:title layout:layout items:items actions:actions];
         carPlayTemplate = informationTemplate;
+        #endif
     }
 
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     if (config[@"tabSystemItem"]) {
         carPlayTemplate.tabSystemItem = [RCTConvert NSInteger:config[@"tabSystemItem"]];
     }
@@ -373,6 +388,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
     if (config[@"tabTitle"]) {
         carPlayTemplate.tabTitle = [RCTConvert NSString:config[@"tabTitle"]];
     }
+    #endif
 
     [carPlayTemplate setUserInfo:@{ @"templateId": templateId }];
     [store setTemplate:templateId template:carPlayTemplate];
@@ -477,10 +493,14 @@ RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated
     store.interfaceController.delegate = self;
 
     if (template) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         [store.interfaceController setRootTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
             NSLog(@"error %@", err);
             // noop
         }];
+        #else
+        [store.interfaceController setRootTemplate:template animated:animated];
+        #endif
     } else {
         NSLog(@"Failed to find template %@", template);
     }
@@ -490,10 +510,14 @@ RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         [store.interfaceController pushTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
             NSLog(@"error %@", err);
             // noop
         }];
+        #else
+        [store.interfaceController pushTemplate:template animated:animated];
+        #endif
     } else {
         NSLog(@"Failed to find template %@", template);
     }
@@ -503,10 +527,14 @@ RCT_EXPORT_METHOD(popToTemplate:(NSString *)templateId animated:(BOOL)animated) 
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         [store.interfaceController popToTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
             NSLog(@"error %@", err);
             // noop
         }];
+        #else
+        [store.interfaceController popToTemplate:template animated:animated];
+        #endif
     } else {
         NSLog(@"Failed to find template %@", template);
     }
@@ -514,28 +542,40 @@ RCT_EXPORT_METHOD(popToTemplate:(NSString *)templateId animated:(BOOL)animated) 
 
 RCT_EXPORT_METHOD(popToRootTemplate:(BOOL)animated) {
     RNCPStore *store = [RNCPStore sharedManager];
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     [store.interfaceController popToRootTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
         NSLog(@"error %@", err);
         // noop
     }];
+    #else
+    [store.interfaceController popToRootTemplateAnimated:animated];
+    #endif
 }
 
 RCT_EXPORT_METHOD(popTemplate:(BOOL)animated) {
     RNCPStore *store = [RNCPStore sharedManager];
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     [store.interfaceController popTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
         NSLog(@"error %@", err);
         // noop
     }];
+    #else
+    [store.interfaceController popTemplateAnimated:animated];
+    #endif
 }
 
 RCT_EXPORT_METHOD(presentTemplate:(NSString *)templateId animated:(BOOL)animated) {
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         [store.interfaceController presentTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
             NSLog(@"error %@", err);
             // noop
         }];
+        #else
+        [store.interfaceController presentTemplate:template animated:animated];
+        #endif
     } else {
         NSLog(@"Failed to find template %@", template);
     }
@@ -547,6 +587,7 @@ RCT_EXPORT_METHOD(dismissTemplate:(BOOL)animated) {
 }
 
 RCT_EXPORT_METHOD(updateListTemplate:(NSString*)templateId config:(NSDictionary*)config) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template && [template isKindOfClass:[CPListTemplate class]]) {
@@ -567,9 +608,11 @@ RCT_EXPORT_METHOD(updateListTemplate:(NSString*)templateId config:(NSDictionary*
             listTemplate.emptyViewSubtitleVariants = [RCTConvert NSArray:config[@"emptyViewSubtitleVariants"]];
         }
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(updateTabBarTemplates:(NSString *)templateId templates:(NSDictionary*)config) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -578,6 +621,7 @@ RCT_EXPORT_METHOD(updateTabBarTemplates:(NSString *)templateId templates:(NSDict
     } else {
         NSLog(@"Failed to find template %@", template);
     }
+    #endif
 }
 
 
@@ -593,6 +637,7 @@ RCT_EXPORT_METHOD(updateListTemplateSections:(NSString *)templateId sections:(NS
 }
 
 RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictionary*)config) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -627,9 +672,11 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
     } else {
         NSLog(@"Failed to find template %@", template);
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(updateInformationTemplateItems:(NSString *)templateId items:(NSArray*)items) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -638,9 +685,11 @@ RCT_EXPORT_METHOD(updateInformationTemplateItems:(NSString *)templateId items:(N
     } else {
         NSLog(@"Failed to find template %@", template);
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(updateInformationTemplateActions:(NSString *)templateId items:(NSArray*)actions) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -649,11 +698,13 @@ RCT_EXPORT_METHOD(updateInformationTemplateActions:(NSString *)templateId items:
     } else {
         NSLog(@"Failed to find template %@", template);
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(getMaximumListItemCount:(NSString *)templateId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -663,11 +714,13 @@ RCT_EXPORT_METHOD(getMaximumListItemCount:(NSString *)templateId
         NSLog(@"Failed to find template %@", template);
         reject(@"template_not_found", @"Template not found in store", nil);
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(getMaximumListSectionCount:(NSString *)templateId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
     if (template) {
@@ -677,6 +730,7 @@ RCT_EXPORT_METHOD(getMaximumListSectionCount:(NSString *)templateId
         NSLog(@"Failed to find template %@", template);
         reject(@"template_not_found", @"Template not found in store", nil);
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(updateMapTemplateConfig:(NSString *)templateId config:(NSDictionary*)config) {
@@ -710,11 +764,13 @@ RCT_EXPORT_METHOD(dismissPanningInterface:(NSString *)templateId animated:(BOOL)
 }
 
 RCT_EXPORT_METHOD(enableNowPlaying:(BOOL)enable) {
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     if (enable && !isNowPlayingActive) {
         [CPNowPlayingTemplate.sharedTemplate addObserver:self];
     } else if (!enable && isNowPlayingActive) {
         [CPNowPlayingTemplate.sharedTemplate removeObserver:self];
     }
+    #endif
 }
 
 RCT_EXPORT_METHOD(hideTripPreviews:(NSString*)templateId) {
@@ -818,9 +874,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     if ([config objectForKey:@"guidanceBackgroundColor"]) {
         [mapTemplate setGuidanceBackgroundColor:[RCTConvert UIColor:config[@"guidanceBackgroundColor"]]];
     }
+    #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     else {
       [mapTemplate setGuidanceBackgroundColor:UIColor.systemGray5Color];
     }
+    #endif
     
     if ([config objectForKey:@"tripEstimateStyle"]) {
         [mapTemplate setTripEstimateStyle:[RCTConvert CPTripEstimateStyle:config[@"tripEstimateStyle"]]];
@@ -879,6 +937,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return templates;
 }
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 - (NSArray<CPButton*>*) parseButtons:(NSArray*)buttons templateId:(NSString *)templateId {
     NSMutableArray *result = [NSMutableArray array];
     for (NSDictionary *button in buttons) {
@@ -911,6 +970,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }
     return result;
 }
+#endif
 
 - (NSArray<CPBarButton*>*) parseBarButtons:(NSArray*)barButtons templateId:(NSString *)templateId {
     NSMutableArray *result = [NSMutableArray array];
@@ -971,9 +1031,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
             _image = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:item[@"imgUrl"]]]]];
         }
         CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:_image showsDisclosureIndicator:_showsDisclosureIndicator];
+        #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
         if ([item objectForKey:@"isPlaying"]) {
             [_item setPlaying:[RCTConvert BOOL:[item objectForKey:@"isPlaying"]]];
         }
+        #endif
         [_item setUserInfo:@{ @"index": @(index) }];
         [_items addObject:_item];
         index = index + 1;
@@ -981,6 +1043,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return _items;
 }
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 - (NSArray<CPInformationItem*>*)parseInformationItems:(NSArray*)items {
     NSMutableArray *_items = [NSMutableArray array];
     for (NSDictionary *item in items) {
@@ -1003,6 +1066,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     
     return _actions;
 }
+#endif
 
 - (NSArray<CPGridButton*>*)parseGridButtons:(NSArray*)buttons templateId:(NSString*)templateId {
     NSMutableArray *result = [NSMutableArray array];
@@ -1306,7 +1370,9 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     self.selectedResultBlock = completionHandler;
 }
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 # pragma TabBarTemplate
+
 - (void)tabBarTemplate:(CPTabBarTemplate *)tabBarTemplate didSelectTemplate:(__kindof CPTemplate *)selectedTemplate {
     NSString* selectedTemplateId = [[selectedTemplate userInfo] objectForKey:@"templateId"];
     [self sendTemplateEventWithName:tabBarTemplate name:@"didSelectTemplate" json:@{@"selectedTemplateId":selectedTemplateId}];
@@ -1320,6 +1386,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 -(void)pointOfInterestTemplate:(CPPointOfInterestTemplate *)pointOfInterestTemplate didSelectPointOfInterest:(CPPointOfInterest *)pointOfInterest {
     [self sendTemplateEventWithName:pointOfInterestTemplate name:@"didSelectPointOfInterest" json:[pointOfInterest userInfo]];
 }
+#endif
 
 # pragma InterfaceController
 
@@ -1339,6 +1406,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     [self sendTemplateEventWithName:aTemplate name:@"willDisappear" json:@{ @"animated": @(animated) }];
 }
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 # pragma NowPlaying
 
 - (void)nowPlayingTemplateUpNextButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate {
@@ -1348,5 +1416,6 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 - (void)nowPlayingTemplateAlbumArtistButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate {
     [self sendTemplateEventWithName:nowPlayingTemplate name:@"albumArtistButtonPressed"];
 }
+#endif
 
 @end
