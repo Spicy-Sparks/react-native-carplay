@@ -11,7 +11,9 @@
 @synthesize window;
 @synthesize searchResultBlock;
 @synthesize selectedResultBlock;
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 @synthesize isNowPlayingActive;
+#endif
 
 -(void)startObserving {
     hasListeners = YES;
