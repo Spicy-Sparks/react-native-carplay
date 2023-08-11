@@ -19,7 +19,6 @@ RCT_ENUM_CONVERTER(CPPanDirection, (@{
                                       @"none": @(CPPanDirectionNone)
                                       }), CPPanDirectionNone, integerValue)
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 150000
 RCT_ENUM_CONVERTER(CPAssistantCellPosition, (@{
                                       @"top": @(CPAssistantCellPositionTop),
                                       @"bottom": @(CPAssistantCellPositionBottom)
@@ -35,8 +34,6 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
                                       @"playMedia": @(CPAssistantCellActionTypePlayMedia),
                                       @"startCall": @(CPAssistantCellActionTypeStartCall)
                                       }), CPAssistantCellActionTypeStartCall, integerValue)
-#endif
-
 
 + (CPMapButton*)CPMapButton:(id)json withHandler:(void (^)(CPMapButton * _Nonnull mapButton))handler {
     CPMapButton *mapButton = [[CPMapButton alloc] initWithHandler:handler];
@@ -73,8 +70,7 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
     return [[CPRouteChoice alloc] initWithSummaryVariants:[RCTConvert NSStringArray:json[@"additionalInformationVariants"]] additionalInformationVariants:[RCTConvert NSStringArray:json[@"selectionSummaryVariants"]] selectionSummaryVariants:[RCTConvert NSStringArray:json[@"summaryVariants"]]];
 }
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
-+ (CPPointOfInterest*)CPPointOfInterest:(id)json {
++ (CPPointOfInterest*)CPPointOfInterest:(id)json  API_AVAILABLE(ios(14.0)){
     MKMapItem *location = [RCTConvert MKMapItem:json[@"location"]];
     NSString *title = [RCTConvert NSString:json[@"title"]];
     NSString *subtitle = [RCTConvert NSString:json[@"subtitle"]];
@@ -86,7 +82,6 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
     CPPointOfInterest *poi = [[CPPointOfInterest alloc] initWithLocation:location title:title subtitle:subtitle summary:summary detailTitle:detailTitle detailSubtitle:detailSubtitle detailSummary:detailSummary pinImage:nil];
     return poi;
 }
-#endif
 
 + (CPAlertActionStyle)CPAlertActionStyle:(NSString*) json {
     if ([json isEqualToString:@"cancel"]) {

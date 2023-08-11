@@ -14,18 +14,14 @@ typedef void (^SelectedResultBlock)(void);
     CPWindow *window;
     SearchResultUpdateBlock searchResultBlock;
     SelectedResultBlock selectedResultBlock;
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
     BOOL isNowPlayingActive;
-#endif
 }
 
 @property(nonatomic, retain) CPInterfaceController *interfaceController;
 @property(nonatomic, retain) CPWindow *window;
 @property(nonatomic, copy) SearchResultUpdateBlock searchResultBlock;
 @property(nonatomic, copy) SelectedResultBlock selectedResultBlock;
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000
 @property(nonatomic) BOOL isNowPlayingActive;
-#endif
 
 + (void)connectWithInterfaceController:(CPInterfaceController *)interfaceController window:(CPWindow *)window;
 + (void)disconnect;
