@@ -18,7 +18,7 @@ export interface TabBarTemplateConfig extends TemplateConfig {
   templates: TabBarTemplates[];
 
   onTemplateSelect(
-    template: TabBarTemplates,
+    template: TabBarTemplates | undefined,
     e: { templateId: string; selectedTemplateId: string },
   ): void;
 }
@@ -32,14 +32,17 @@ export class TabBarTemplate extends Template<TabBarTemplateConfig> {
   constructor(public config: TabBarTemplateConfig) {
     super(config);
 
-    CarPlay.emitter.addListener('didSelectTemplate', e => {
-      if (config.onTemplateSelect && e.templateId === this.id) {
-        config.onTemplateSelect(
-          config.templates.find(tpl => tpl.id === e.selectedTemplateId),
-          e,
-        );
-      }
-    });
+    CarPlay.emitter.addListener(
+      'didSelectTemplate',
+      (e: { templateId: string; selectedTemplateId: string }) => {
+        if (config.onTemplateSelect && e.templateId === this.id) {
+          config.onTemplateSelect(
+            config.templates.find(tpl => tpl.id === e.selectedTemplateId),
+            e,
+          );
+        }
+      },
+    );
   }
 
   public updateTemplates = (config: TabBarTemplateConfig) => {

@@ -14,6 +14,157 @@ This version of `react-native-carplay` supports iOS 14. If you need support for 
 
 ## CarPlay Entitlement and XCode Project Setup
 
+### Entitlement matrix
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>List</th>
+<th>Grid</th>
+<th title="TabBar">T B</th>
+
+<th>Alert</th>
+<th title="Action Sheet">A S</th>
+
+<th title="Voice Controller">🎤</th>
+<th title="Now Playing">▶️</th>
+
+<th>Map</th>
+<th title="Search">🔎</th>
+
+<th title="Point of Interest">POI</th>
+<th title="Information">Info</th>
+
+<th title="Contact">📇</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+com.apple.developer.carplay-audio
+</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>❌</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+</tr>
+<tr>
+<td>com.apple.developer.carplay-communication</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>✅</td>
+
+<td>✅</td>
+</tr>
+<tr>
+<td>com.apple.developer.carplay-charging</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+</tr>
+<tr>
+<td>com.apple.developer.carplay-maps</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>❌</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>❌</td>
+<td>✅</td>
+
+<td>✅</td>
+</tr>
+<tr>
+<td>com.apple.developer.carplay-parking</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+</tr>
+<tr>
+<td>com.apple.developer.carplay-quick-ordering</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>❌</td>
+<td>❌</td>
+
+<td>✅</td>
+<td>✅</td>
+
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+
 #### Read this section if you are new to CarPlay!
 
 One of the most useful resources for undertanding the requirements, constraints and capabilities of CarPlay apps is the official [App Programming Guidelines](https://developer.apple.com/carplay/documentation/CarPlay-App-Programming-Guide.pdf) from Apple. It's a 50-page document that clearly lays out steps required and you are strongly encouraged to read it if you are new to CarPlay. Further to the above guide, when developing a CarPlay app or if contributing to this package; you'll find the [CarPlay Documentation](https://developer.apple.com/documentation/carplay?language=objc) invaluable.
@@ -176,8 +327,8 @@ Templates are used to render contents on the CarPlay screen from your app. Detai
 
 ### MapTemplate
 
-![Map Template](.github/mapTemplateRoutes.png)
-![Map Template](.github/mapTemplateNavigation.png)
+![Map Template](/.github/images/mapTemplateRoutes.png)
+![Map Template](/.github/images/mapTemplateNavigation.png)
 
 ```jsx
 import { CarPlay } from 'react-native-carplay';
@@ -198,7 +349,7 @@ CarPlay.setRootTemplate(mapTemplate);
 
 ### ListTemplate
 
-![List Template](.github/listTemplate.png)
+![List Template](/.github/images/listTemplate.png)
 
 ```jsx
 import { CarPlay } from 'react-native-carplay';
@@ -217,18 +368,31 @@ CarPlay.pushTemplate(listTemplate, true);
 
 ### InformationTemplate
 
-![Information Template](.github/informationTemplate.png)
+![Information Template](/.github/images/informationTemplate.png)
 
 ```jsx
 import { CarPlay } from 'react-native-carplay';
 
-const informationTemplate = new InformationTemplate({
+const template = new InformationTemplate({
   title: 'Information',
-  items: [],
-  actions: [{ id: 'x', title: 'demo' }],
-  onActionButtonPressed({ id }) {
-    // id of button pressed
-    console.log('pressed', id);
+  items: Array.from({ length: 30 }).fill({ title: 'foo', detail: 'bar' }),
+  actions: [
+    { id: 'u', title: 'Update List' },
+    { id: 'r', title: 'Random #:' },
+  ],
+  onActionButtonPressed(action) {
+    console.log('pressed', action);
+    if (action.id == 'u') {
+      const numOfItems = Math.floor(Math.random() * 6);
+      template.updateInformationTemplateItems(
+        Array.from({ length: numOfItems }).fill({ title: 'foo', detail: 'bar' }),
+      );
+    } else if (action.id == 'r') {
+      template.updateInformationTemplateActions([
+        { id: 'u', title: 'Update List' },
+        { id: 'r', title: 'Random #:' + Math.floor(Math.random() * 100) },
+      ]);
+    }
   },
 });
 
@@ -237,7 +401,7 @@ CarPlay.pushTemplate(informationTemplate);
 
 ### GridTemplate
 
-![Grid Template](.github/gridTemplate.png)
+![Grid Template](/.github/images/gridTemplate.png)
 
 ```jsx
 import { CarPlay } from 'react-native-carplay';
@@ -272,7 +436,7 @@ CarPlay.pushTemplate(gridTemplate, true);
 
 ### SearchTemplate
 
-![Search Template](.github/searchTemplate.png)
+![Search Template](/.github/images/searchTemplate.png)
 
 ```jsx
 const searchTemplate = new SearchTemplate({
@@ -297,7 +461,7 @@ CarPlay.pushTemplate(searchTemplate, true);
 
 ### VoiceTemplate
 
-![Voice Template](.github/voiceTemplate.png)
+![Voice Template](/.github/images/voiceTemplate.png)
 
 This template is presented via `CarPlay.presentTemplate`. In order to implement voice recognition, take a look at the [`@react-native-voice/voice`](https://github.com/react-native-voice/voice) package.
 
@@ -319,7 +483,7 @@ CarPlay.presentTemplate(voiceControlTemplate, true);
 
 ### AlertTemplate
 
-![Alert Template](.github/alertTemplate.png)
+![Alert Template](/.github/images/alertTemplate.png)
 
 This template is presented via `CarPlay.presentTemplate`.
 
@@ -352,7 +516,7 @@ CarPlay.presentTemplate(alertTemplate);
 
 ### ActionSheetTemplate
 
-![ActionSheet Template](.github/actionSheetTemplate.png)
+![ActionSheet Template](/.github/images/actionSheetTemplate.png)
 
 This template is presented via `CarPlay.presentTemplate`.
 
@@ -381,7 +545,7 @@ CarPlay.presentTemplate(actionSheetTemplate);
 
 ### TabTemplate
 
-![Tab Template](.github/tabTemplate.png)
+![Tab Template](/.github/images/tabTemplate.png)
 
 This template must be set as the root template and cannot be pushed on top of other templates.
 

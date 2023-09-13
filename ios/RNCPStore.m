@@ -38,29 +38,29 @@
     return _connected;
 }
 
-- (CPTemplate*) findTemplateById:(NSString*)templateId API_AVAILABLE(ios(12.0)){
+- (CPTemplate*) findTemplateById:(NSString*)templateId {
     return [_templatesStore objectForKey:templateId];
 }
 
-- (NSString*) setTemplate:(NSString*)templateId template:(CPTemplate*)template API_AVAILABLE(ios(12.0)){
-    [_templatesStore setObject:template forKey:templateId];
+- (NSString*) setTemplate:(NSString*)templateId template:(CPTemplate*)carPlayTemplate {
+    [_templatesStore setObject:carPlayTemplate forKey:templateId];
     return templateId;
 }
 
-- (CPTrip*) findTripById:(NSString*)tripId API_AVAILABLE(ios(12.0)){
+- (CPTrip*) findTripById:(NSString*)tripId {
     return [_tripsStore objectForKey:tripId];
 }
 
-- (NSString*) setTrip:(NSString*)tripId trip:(CPTrip*)trip API_AVAILABLE(ios(12.0)){
+- (NSString*) setTrip:(NSString*)tripId trip:(CPTrip*)trip {
     [_tripsStore setObject:trip forKey:tripId];
     return tripId;
 }
 
-- (CPNavigationSession*) findNavigationSessionById:(NSString*)navigationSessionId API_AVAILABLE(ios(12.0)){
+- (CPNavigationSession*) findNavigationSessionById:(NSString*)navigationSessionId {
     return [_navigationSessionsStore objectForKey:navigationSessionId];
 }
 
-- (NSString*) setNavigationSession:(NSString*)navigationSessionId navigationSession:(CPNavigationSession*)navigationSession API_AVAILABLE(ios(12.0)){
+- (NSString*) setNavigationSession:(NSString*)navigationSessionId navigationSession:(CPNavigationSession*)navigationSession {
     [_navigationSessionsStore setObject:navigationSession forKey:navigationSessionId];
     return navigationSessionId;
 }

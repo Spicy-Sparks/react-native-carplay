@@ -2,6 +2,7 @@ import { CarPlay } from '../CarPlay';
 import { ListItemUpdate } from '../interfaces/ListItemUpdate';
 import { ListSection } from '../interfaces/ListSection';
 import { Template, TemplateConfig } from './Template';
+
 export interface ListTemplateConfig extends TemplateConfig {
   /**
    * The title displayed in the navigation bar while the list template is visible.
@@ -45,6 +46,23 @@ export interface ListTemplateConfig extends TemplateConfig {
    * Fired when the back button is pressed
    */
   onBackButtonPressed?(): void;
+
+  /**
+   * Option to hide back button
+   * (defaults to false)
+   */
+  backButtonHidden?: boolean;
+
+  /**
+   * Assistant Configuration
+   * @see https://developer.apple.com/documentation/carplay/cplisttemplate#3762508
+   */
+  assistant?: {
+    enabled: boolean;
+    position: 'top' | 'bottom';
+    visibility: 'off' | 'always' | 'limited';
+    action: 'playMedia' | 'startCall';
+  };
 }
 
 /**
@@ -70,10 +88,11 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   constructor(public config: ListTemplateConfig) {
     super(config);
 
-    CarPlay.emitter.addListener('didSelectListItem', e => {
+    CarPlay.emitter.addListener('didSelectListItem', (e: { templateId: string; index: number }) => {
       if (config.onItemSelect && e.templateId === this.id) {
-        const x = config.onItemSelect(e);
-        Promise.resolve(x).then(() => CarPlay.bridge.reactToSelectedResult(true));
+        void Promise.resolve(config.onItemSelect(e)).then(() => {
+          CarPlay.bridge.reactToSelectedResult(true);
+        });
       }
     });
   }
@@ -85,4 +104,12 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   public updateListTemplateItem = (config: ListItemUpdate) => {
     return CarPlay.bridge.updateListTemplateItem(this.id, this.parseConfig(config));
   };
+
+  public getMaximumListItemCount() {
+    return CarPlay.bridge.getMaximumListItemCount(this.id);
+  }
+
+  public getMaximumListSectionCount() {
+    return CarPlay.bridge.getMaximumListSectionCount(this.id);
+  }
 }

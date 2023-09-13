@@ -1,4 +1,4 @@
-import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
+import { NativeEventEmitter, NativeModule, NativeModules, Platform } from 'react-native';
 import { ActionSheetTemplate } from './templates/ActionSheetTemplate';
 import { AlertTemplate } from './templates/AlertTemplate';
 import { ContactTemplate } from './templates/ContactTemplate';
@@ -11,8 +11,69 @@ import { SearchTemplate } from './templates/SearchTemplate';
 import { TabBarTemplate } from './templates/TabBarTemplate';
 import { VoiceControlTemplate } from './templates/VoiceControlTemplate';
 import { NowPlayingTemplate } from './templates/NowPlayingTemplate';
+import { Maneuver } from './interfaces/Maneuver';
+import { TravelEstimates } from './interfaces/TravelEstimates';
+import { PauseReason } from './interfaces/PauseReason';
+import { TripConfig } from './navigation/Trip';
+import { TimeRemainingColor } from './interfaces/TimeRemainingColor';
+import { TextConfiguration } from './interfaces/TextConfiguration';
 
-const { RNCarPlay } = NativeModules;
+interface InternalCarPlay extends NativeModule {
+  checkForConnection(): void;
+  setRootTemplate(templateId: string, animated: boolean): void;
+  pushTemplate(templateId: string, animated: boolean): void;
+  popToTemplate(templateId: string, animated: boolean): void;
+  popToRootTemplate(animated: boolean): void;
+  popTemplate(animated: boolean): void;
+  presentTemplate(templateId: string, animated: boolean): void;
+  dismissTemplate(animated: boolean): void;
+  enableNowPlaying(enabled: boolean): void;
+  updateManeuversNavigationSession(id: string, x: Maneuver[]): void;
+  updateTravelEstimatesNavigationSession(
+    id: string,
+    index: number,
+    estimates: TravelEstimates,
+  ): void;
+  cancelNavigationSession(id: string): void;
+  finishNavigationSession(id: string): void;
+  pauseNavigationSession(id: string, reason: PauseReason, description?: string): void;
+  createTrip(id: string, config: TripConfig): void;
+  updateInformationTemplateItems(id: string, config: unknown): void;
+  updateInformationTemplateActions(id: string, config: unknown): void;
+  createTemplate(id: string, config: unknown): void;
+  startNavigationSession(
+    id: string,
+    tripId: string,
+  ): Promise<{
+    tripId: string;
+    navigationSessionId: string;
+  }>;
+  updateTravelEstimatesForTrip(
+    id: string,
+    tripId: string,
+    travelEstimates: TravelEstimates,
+    timeRemainingColor: TimeRemainingColor,
+  ): void;
+  updateMapTemplateConfig(id: string, config: unknown): void;
+  updateMapTemplateMapButtons(id: string, config: unknown): void;
+  hideTripPreviews(id: string): void;
+  showTripPreviews(id: string, previews: string[], config: TextConfiguration): void;
+  showRouteChoicesPreviewForTrip(id: string, tripId: string, config: TextConfiguration): void;
+  presentNavigationAlert(id: string, config: unknown, animated: boolean): void;
+  dismissNavigationAlert(id: string, animated: boolean): void;
+  showPanningInterface(id: string, animated: boolean): void;
+  dismissPanningInterface(id: string, animated: boolean): void;
+  getMaximumListSectionCount(id: string): Promise<number>;
+  getMaximumListItemCount(id: string): Promise<number>;
+  reactToSelectedResult(status: boolean): void;
+  updateListTemplateSections(id: string, config: unknown): void;
+  updateListTemplateItem(id: string, config: unknown): void;
+  reactToUpdatedSearchText(items: unknown): void;
+  updateTabBarTemplates(id: string, config: unknown): void;
+  activateVoiceControlState(id: string, identifier: string): void;
+}
+
+const { RNCarPlay } = NativeModules as { RNCarPlay: InternalCarPlay };
 
 type PushableTemplates =
   | MapTemplate
@@ -24,6 +85,15 @@ type PushableTemplates =
   | ContactTemplate
   | NowPlayingTemplate;
 type PresentableTemplates = AlertTemplate | ActionSheetTemplate | VoiceControlTemplate;
+
+type WindowInformation = {
+  width: number;
+  height: number;
+  scale: number;
+};
+
+type OnConnectCallback = (window: WindowInformation) => void;
+type OnDisconnectCallback = () => void;
 
 /**
  * A controller that manages all user interface elements appearing on your map displayed on the CarPlay screen.
@@ -44,18 +114,18 @@ class CarPlayInterface {
    */
   public emitter = new NativeEventEmitter(RNCarPlay);
 
-  private onConnectCallbacks = new Set<() => void>();
-  private onDisconnectCallbacks = new Set<() => void>();
+  private onConnectCallbacks = new Set<OnConnectCallback>();
+  private onDisconnectCallbacks = new Set<OnDisconnectCallback>();
 
   constructor() {
     if (Platform.OS !== 'ios') {
       return;
     }
 
-    this.emitter.addListener('didConnect', () => {
+    this.emitter.addListener('didConnect', (window: WindowInformation) => {
       this.connected = true;
       this.onConnectCallbacks.forEach(callback => {
-        callback();
+        callback(window);
       });
     });
     this.emitter.addListener('didDisconnect', () => {
@@ -73,22 +143,22 @@ class CarPlayInterface {
   /**
    * Fired when CarPlay is connected to the device.
    */
-  public registerOnConnect = (callback: () => void) => {
+  public registerOnConnect = (callback: OnConnectCallback) => {
     this.onConnectCallbacks.add(callback);
   };
 
-  public unregisterOnConnect = (callback: () => void) => {
+  public unregisterOnConnect = (callback: OnConnectCallback) => {
     this.onConnectCallbacks.delete(callback);
   };
 
   /**
    * Fired when CarPlay is disconnected from the device.
    */
-  public registerOnDisconnect = (callback: () => void) => {
+  public registerOnDisconnect = (callback: OnDisconnectCallback) => {
     this.onDisconnectCallbacks.add(callback);
   };
 
-  public unregisterOnDisconnect = (callback: () => void) => {
+  public unregisterOnDisconnect = (callback: OnDisconnectCallback) => {
     this.onDisconnectCallbacks.delete(callback);
   };
 

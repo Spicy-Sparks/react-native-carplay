@@ -2,7 +2,6 @@
 #import <React/RCTConvert+CoreLocation.h>
 #import <Availability.h>
 
-API_AVAILABLE(ios(12.0))
 @implementation RCTConvert (RNCarPlay)
 
 RCT_ENUM_CONVERTER(CPTripEstimateStyle, (@{
@@ -17,8 +16,24 @@ RCT_ENUM_CONVERTER(CPPanDirection, (@{
                                       @"right": @(CPPanDirectionRight),
                                       @"bottom": @(CPPanDirectionDown),
                                       @"left": @(CPPanDirectionLeft),
-                                      @"none": @(CPPanDirectionNone),
+                                      @"none": @(CPPanDirectionNone)
                                       }), CPPanDirectionNone, integerValue)
+
+RCT_ENUM_CONVERTER(CPAssistantCellPosition, (@{
+                                      @"top": @(CPAssistantCellPositionTop),
+                                      @"bottom": @(CPAssistantCellPositionBottom)
+                                      }), CPAssistantCellPositionTop, integerValue)
+
+RCT_ENUM_CONVERTER(CPAssistantCellVisibility, (@{
+                                      @"off": @(CPAssistantCellVisibilityOff),
+                                      @"always": @(CPAssistantCellVisibilityAlways),
+                                      @"limited": @(CPAssistantCellVisibilityWhileLimitedUIActive)
+                                      }), CPAssistantCellVisibilityOff, integerValue)
+
+RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
+                                      @"playMedia": @(CPAssistantCellActionTypePlayMedia),
+                                      @"startCall": @(CPAssistantCellActionTypeStartCall)
+                                      }), CPAssistantCellActionTypeStartCall, integerValue)
 
 + (CPMapButton*)CPMapButton:(id)json withHandler:(void (^)(CPMapButton * _Nonnull mapButton))handler {
     CPMapButton *mapButton = [[CPMapButton alloc] initWithHandler:handler];
@@ -55,7 +70,7 @@ RCT_ENUM_CONVERTER(CPPanDirection, (@{
     return [[CPRouteChoice alloc] initWithSummaryVariants:[RCTConvert NSStringArray:json[@"additionalInformationVariants"]] additionalInformationVariants:[RCTConvert NSStringArray:json[@"selectionSummaryVariants"]] selectionSummaryVariants:[RCTConvert NSStringArray:json[@"summaryVariants"]]];
 }
 
-+ (CPPointOfInterest*)CPPointOfInterest:(id)json API_AVAILABLE(ios(14.0)){
++ (CPPointOfInterest*)CPPointOfInterest:(id)json  API_AVAILABLE(ios(14.0)){
     MKMapItem *location = [RCTConvert MKMapItem:json[@"location"]];
     NSString *title = [RCTConvert NSString:json[@"title"]];
     NSString *subtitle = [RCTConvert NSString:json[@"subtitle"]];

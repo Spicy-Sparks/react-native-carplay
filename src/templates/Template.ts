@@ -1,8 +1,9 @@
+import { ImageSourcePropType } from 'react-native';
 import { CarPlay } from '../CarPlay';
 import { BarButton } from '../interfaces/BarButton';
 
-const traverse = require('traverse'); // tslint:disable-line no-var-requires
-const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource'); // tslint:disable-line no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource');
 
 export interface BaseEvent {
   /**
@@ -39,11 +40,15 @@ export interface TemplateConfig {
   /**
    * Name of system image for tab
    */
-  tabSystemImg?: string;
+  tabSystemImageName?: string;
   /**
-   * Name of system image for tab
+   * Image source for tab
    */
-  tabImage?: null;
+  tabImage?: ImageSourcePropType;
+  /**
+   * Set tab title
+   */
+  tabTitle?: string;
   /**
    * Fired before template appears
    * @param e Event
@@ -76,7 +81,7 @@ export class Template<P> {
   public get type(): string {
     return 'unset';
   }
-  public id: string;
+  public id!: string;
 
   public get eventMap() {
     return {};
@@ -100,10 +105,19 @@ export class Template<P> {
       ...(this.eventMap || {}),
     };
 
-    Object.entries(eventMap).forEach(([eventName, callbackName]: any) => {
-      CarPlay.emitter.addListener(eventName, e => {
-        if (config[callbackName] && e.templateId === this.id) {
-          config[callbackName](e);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Object.entries(eventMap).forEach(([eventName, callbackName]: [string, any]) => {
+      CarPlay.emitter.addListener(eventName, (e: { id: string; templateId: string }) => {
+        const configEventName = callbackName as keyof Pick<
+          TemplateConfig,
+          | 'onWillAppear'
+          | 'onWillDisappear'
+          | 'onDidAppear'
+          | 'onDidDisappear'
+          | 'onBarButtonPressed'
+        >;
+        if (config[configEventName] && e.templateId === this.id) {
+          config[configEventName]?.(e);
         }
       });
     });
@@ -113,12 +127,22 @@ export class Template<P> {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public parseConfig(config: any) {
-    const result = traverse(config).map(function node(x) {
-      if (String(this.key).match(/[Ii]mage$/)) {
-        this.update(resolveAssetSource(x));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function traverse(obj: any) {
+      for (const i in obj) {
+        if (obj[i] !== null && typeof obj[i] === 'object') {
+          traverse(obj[i]);
+        }
+        if (String(i).match(/[Ii]mage$/)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          obj[i] = resolveAssetSource(obj[i]);
+        }
       }
-    });
-    return JSON.parse(JSON.stringify(result));
+    }
+    const result = JSON.parse(JSON.stringify(config));
+    traverse(result);
+    return result;
   }
 }

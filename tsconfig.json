@@ -1,18 +1,11 @@
 {
+  "extends": "@tsconfig/react-native/tsconfig.json",
   "compilerOptions": {
-    "target": "es2017",
-    "module": "commonjs",
-    "declaration": true,
-    // "declarationDir": "types",
-    "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "skipLibCheck": true,
-    "sourceMap": false,
+    "baseUrl": "./",
+    "composite": false,
+    "noEmit": false,
     "outDir": "lib"
   },
-  "exclude": ["node_modules", "lib"],
   "include": ["src/**/*.ts"],
-  "compileOnSave": false,
-  "buildOnSave": false
+  "exclude": ["node_modules", "lib"]
 }
