@@ -21,6 +21,10 @@ export interface ListItem {
    */
   imgUrl?: null;
   /**
+   * The images from file system displayed on the row of the list item cell.
+   */
+   imgUrls?: Array<string>;
+  /**
    * A Boolean value indicating whether the list item cell shows a disclosure indicator on the trailing edge of the list item cell.
    */
   showsDisclosureIndicator?: boolean;
@@ -28,4 +32,8 @@ export interface ListItem {
    * Is Playing flag.
    */
   isPlaying?: boolean;
+  /**
+   * Is Artist flag.
+   */
+  isArtist?: boolean
 }

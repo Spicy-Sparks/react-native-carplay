@@ -88,7 +88,15 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   constructor(public config: ListTemplateConfig) {
     super(config);
 
-    CarPlay.emitter.addListener('didSelectListItem', (e: { templateId: string; index: number }) => {
+    CarPlay.emitter.addListener('didSelectListItem', e => {
+      if (config.onItemSelect && e.templateId === this.id) {
+        void Promise.resolve(config.onItemSelect(e)).then(() => {
+          CarPlay.bridge.reactToSelectedResult(true);
+        });
+      }
+    });
+
+    CarPlay.emitter.addListener('didSelectRowItem', e => {
       if (config.onItemSelect && e.templateId === this.id) {
         void Promise.resolve(config.onItemSelect(e)).then(() => {
           CarPlay.bridge.reactToSelectedResult(true);
@@ -111,5 +119,9 @@ export class ListTemplate extends Template<ListTemplateConfig> {
 
   public getMaximumListSectionCount() {
     return CarPlay.bridge.getMaximumListSectionCount(this.id);
+  }
+
+  public getMaximumRowItemsCount() {
+    return CarPlay.bridge.getMaximumRowItemsCount(this.id);
   }
 }

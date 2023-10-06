@@ -22,6 +22,7 @@ typedef void (^SelectedResultBlock)(void);
 @property(nonatomic, copy) SearchResultUpdateBlock searchResultBlock;
 @property(nonatomic, copy) SelectedResultBlock selectedResultBlock;
 @property(nonatomic) BOOL isNowPlayingActive;
+@property(nullable, nonatomic, copy) void (^listImageRowHandler)(CPListImageRowItem *item, NSInteger index, dispatch_block_t completionBlock);
 
 + (void)connectWithInterfaceController:(CPInterfaceController *)interfaceController window:(CPWindow *)window;
 + (void)disconnect;
