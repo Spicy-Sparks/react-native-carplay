@@ -3,6 +3,7 @@
 #import <CarPlay/CarPlay.h>
 #import <React/RCTConvert.h>
 
+API_AVAILABLE(ios(12.0))
 @interface RCTConvert (RNCarPlay)
 
 + (CPTripEstimateStyle)CPTripEstimateStyle:(id)json;
