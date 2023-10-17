@@ -43,6 +43,14 @@ export interface ListTemplateConfig extends TemplateConfig {
   onItemSelect?(item: { index: number }): Promise<void>;
 
   /**
+   * Fired when row item is selected.
+   * Spinner shows by default.
+   * When the returned promise is resolved the spinner will hide.
+   * @param item Object with the selected index
+   */
+  onRowItemSelect?(item: { id: string, collectionType: string, collectionId: string }): Promise<void>;
+
+  /**
    * Fired when the back button is pressed
    */
   onBackButtonPressed?(): void;
@@ -97,8 +105,8 @@ export class ListTemplate extends Template<ListTemplateConfig> {
     });
 
     CarPlay.emitter.addListener('didSelectRowItem', e => {
-      if (config.onItemSelect && e.templateId === this.id) {
-        void Promise.resolve(config.onItemSelect(e)).then(() => {
+      if (config.onRowItemSelect && e.templateId === this.id) {
+        void Promise.resolve(config.onRowItemSelect(e)).then(() => {
           CarPlay.bridge.reactToSelectedResult(true);
         });
       }

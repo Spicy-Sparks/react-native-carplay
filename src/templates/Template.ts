@@ -16,6 +16,8 @@ interface BarButtonEvent extends BaseEvent {
   id: string;
 }
 
+type TabImageName = 'home' | 'clock' | 'search' | 'music'
+
 export interface TemplateConfig {
   /**
    * Give the template your own ID. Must be unique.
@@ -45,6 +47,10 @@ export interface TemplateConfig {
    * Image source for tab
    */
   tabImage?: ImageSourcePropType;
+  /**
+   * Image name for tab
+   */
+  tabImageName?: TabImageName;
   /**
    * Set tab title
    */

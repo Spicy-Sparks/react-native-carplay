@@ -283,25 +283,29 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
             NSMutableArray<CPNowPlayingButton *> *buttons = [NSMutableArray new];
             NSArray<NSDictionary*> *_buttons = [RCTConvert NSDictionaryArray:config[@"buttons"]];
             
-            NSDictionary *buttonTypeMapping = @{
-                @"shuffle": CPNowPlayingShuffleButton.class,
-                @"add-to-library": CPNowPlayingAddToLibraryButton.class,
-                @"more": CPNowPlayingMoreButton.class,
-                @"playback": CPNowPlayingPlaybackRateButton.class,
-                @"repeat": CPNowPlayingRepeatButton.class,
-                @"image": CPNowPlayingImageButton.class
+            NSDictionary *buttonImagesNamesMapping = @{
+                @"heart": @"HeartIcon",
+                @"heart-outlined": @"HeartOutlinedIcon",
+                @"clock": @"ClockNowIcon",
+                @"arrow-down-circle": @"ArrowDownCircleIcon",
+                @"md-close": @"CloseIcon",
+                @"repeat": @"RepeatIcon",
+                @"shuffle": @"ShuffleIcon"
             };
             
             for (NSDictionary *_button in _buttons) {
-                NSString *buttonType = [RCTConvert NSString:_button[@"type"]];
-                NSDictionary *body = @{@"templateId":templateId, @"id": _button[@"id"] };
-                Class buttonClass = buttonTypeMapping[buttonType];
-                if (buttonClass) {
-                    CPNowPlayingButton *button = [[buttonClass alloc] initWithHandler:^(__kindof CPNowPlayingButton * _Nonnull) {
+                NSString *id = [RCTConvert NSString:_button[@"id"]];
+                NSString *imageName = [RCTConvert NSString:_button[@"imageName"]];
+                BOOL selected = [RCTConvert BOOL:_button[@"selected"]];
+                NSDictionary *body = @{@"templateId":templateId, @"id": id};
+                UIImage *buttonImage = [UIImage imageNamed:buttonImagesNamesMapping[imageName]];
+                if (buttonImage) {
+                    CPNowPlayingButton *button = [CPNowPlayingImageButton.alloc initWithImage:buttonImage handler:^(CPNowPlayingImageButton*) {
                         if (self->hasListeners) {
                             [self sendEventWithName:@"buttonPressed" body:body];
                         }
                     }];
+                    button.selected = selected;
                     [buttons addObject:button];
                 }
             }
@@ -406,6 +410,16 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         }
         if (config[@"tabImage"]) {
             carPlayTemplate.tabImage = [RCTConvert UIImage:config[@"tabImage"]];
+        }
+        if (config[@"tabImageName"]) {
+            NSDictionary *tabImagesNamesMapping = @{
+                @"home": @"HomeIcon",
+                @"clock": @"ClockTabIcon",
+                @"search": @"SearchIcon",
+                @"music": @"MusicIcon",
+            };
+            NSString *imageName = [RCTConvert NSString:config[@"tabImageName"]];
+            carPlayTemplate.tabImage = [UIImage imageNamed: tabImagesNamesMapping[imageName]];
         }
         if (config[@"tabTitle"]) {
             carPlayTemplate.tabTitle = [RCTConvert NSString:config[@"tabTitle"]];
@@ -764,6 +778,16 @@ RCT_EXPORT_METHOD(getMaximumRowItemsCount:(RCTPromiseResolveBlock)resolve
     }
 }
 
+//RCT_EXPORT_METHOD(updateNowPlayingTemplate:(NSString *)templateId config:(NSDictionary*)config) {
+//    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+//    if (template) {
+//        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+//        [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
+//    } else {
+//        NSLog(@"Failed to find template %@", template);
+//    }
+//}
+
 RCT_EXPORT_METHOD(updateMapTemplateConfig:(NSString *)templateId config:(NSDictionary*)config) {
     CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
     if (template) {
@@ -1067,12 +1091,14 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     UIColor *placeholderColor = [UIColor colorWithRed:0.48 green:0.48 blue:0.48 alpha:0.9];
     UIImage *placeholderImage = [self generatePlaceholderImageWithColor:placeholderColor];
     for (NSDictionary *item in items) {
-        NSString *_detailText = [item objectForKey:@"detailText"];
-        NSString *_text = [item objectForKey:@"text"];
+        NSString *_detailText = [RCTConvert NSString:item[@"detailText"]];
+        NSString *_text = [RCTConvert NSString:item[@"text"]];
         UIImage *_uiImage = [RCTConvert UIImage:[item objectForKey:@"image"]];
         NSMutableArray *_rowItems = [item objectForKey:@"rowItems"];
+        BOOL isPlaying = [RCTConvert BOOL:item[@"isPlaying"]];
+        BOOL onlyText = [RCTConvert BOOL:item[@"onlyText"]];
         
-        if (!_uiImage) _uiImage = placeholderImage;
+        if (!_uiImage && !onlyText) _uiImage = placeholderImage;
 
         if(item[@"rowItems"] && templateId) {
             if (@available(iOS 14.0, *)) {
@@ -1107,8 +1133,8 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                         bodyDictionary[@"templateId"] = templateId;
                     }
 
-                    if (loadedRowItems[index][@"trackId"]) {
-                        bodyDictionary[@"trackId"] = loadedRowItems[index][@"trackId"];
+                    if (loadedRowItems[index][@"id"]) {
+                        bodyDictionary[@"id"] = loadedRowItems[index][@"id"];
                     }
 
                     if (loadedRowItems[index][@"collectionId"]) {
@@ -1120,19 +1146,6 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     }
                     
                     [self sendEventWithName:@"didSelectRowItem" body:bodyDictionary];
-
-                    CPNowPlayingTemplate *nowplayingTemplate = [CPNowPlayingTemplate sharedTemplate];
-
-                    RNCPStore *store = [RNCPStore sharedManager];
-
-                    if (@available(iOS 14, *)) {
-                        [store.interfaceController pushTemplate:nowplayingTemplate animated:YES completion:^(BOOL done, NSError * _Nullable err) {
-                            NSLog(@"error %@", err);
-                            // noop
-                        }];
-                    } else {
-                        [store.interfaceController pushTemplate:nowplayingTemplate animated:YES];
-                    }
 
                     if (completionBlock) {
                         completionBlock();
@@ -1154,12 +1167,15 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         }
         CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:_uiImage];
         if (@available(iOS 14, *)) {
-            if ([item objectForKey:@"isPlaying"]) {
-                [_item setPlaying:[RCTConvert BOOL:[item objectForKey:@"isPlaying"]]];
+            if (isPlaying) {
+                [_item setPlaying:isPlaying];
                 [_item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
             }
             if ([item objectForKey:@"showsDisclosureIndicator"]) {
-                [_item setAccessoryType:CPListItemAccessoryTypeDisclosureIndicator];
+                BOOL showsDisclosureIndicator = [RCTConvert BOOL:[item objectForKey:@"showsDisclosureIndicator"]];
+                if (showsDisclosureIndicator) {
+                    [_item setAccessoryType:CPListItemAccessoryTypeDisclosureIndicator];
+                }
             }
         }
         [_item setUserInfo:@{ @"index": @(index) }];

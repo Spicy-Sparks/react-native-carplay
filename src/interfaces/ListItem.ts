@@ -19,7 +19,7 @@ export interface ListItem {
   /**
    * The image from file system displayed on the leading edge of the list item cell.
    */
-  imgUrl?: null;
+  imgUrl?: string;
   /**
    * The images from file system displayed on the row of the list item cell.
    */
