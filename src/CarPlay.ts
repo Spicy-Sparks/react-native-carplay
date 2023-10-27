@@ -69,6 +69,7 @@ interface InternalCarPlay extends NativeModule {
   reactToSelectedResult(status: boolean): void;
   updateListTemplateSections(id: string, config: unknown): void;
   updateListTemplateItem(id: string, config: unknown): void;
+  updateListTemplateRowItems(id: string, config: unknown): void;
   reactToUpdatedSearchText(items: unknown): void;
   updateTabBarTemplates(id: string, config: unknown): void;
   activateVoiceControlState(id: string, identifier: string): void;

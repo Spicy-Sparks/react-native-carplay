@@ -162,16 +162,6 @@ RCT_EXPORT_MODULE();
     return destImage;
 }
 
-- (UIImage *)generatePlaceholderImageWithColor:(UIColor *)color {
-    CGSize placeholderSize = CGSizeMake(100, 100);
-    UIGraphicsBeginImageContextWithOptions(placeholderSize, NO, 0.0);
-    [color setFill];
-    UIRectFill(CGRectMake(0, 0, placeholderSize.width, placeholderSize.height));
-    UIImage *placeholder = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    return placeholder;
-}
-
 RCT_EXPORT_METHOD(checkForConnection) {
     RNCPStore *store = [RNCPStore sharedManager];
     if ([store isConnected] && hasListeners) {
@@ -692,20 +682,83 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
                 return;
             }
             CPListItem *item = (CPListItem *)section.items[index];
-            if (config[@"imgUrl"]) {
-                [item setImage:[[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:config[@"imgUrl"]]]]]];
+            if (item) {
+                if (config[@"imgUrl"]) {
+                    [item setImage:[[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:config[@"imgUrl"]]]]]];
+                }
+                if (config[@"image"]) {
+                    [item setImage:[RCTConvert UIImage:config[@"image"]]];
+                }
+                if (config[@"text"]) {
+                    [item setText:[RCTConvert NSString:config[@"text"]]];
+                }
+                if (config[@"detailText"]) {
+                    [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
+                }
+                BOOL isPlaying = [RCTConvert BOOL:config[@"isPlaying"]];
+                if (isPlaying) {
+                    [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
+                    [item setPlaying:YES];
+                    NSLog(@"added");
+                } else {
+                    [item setPlaying:NO];
+                    NSLog(@"removed");
+                }
             }
-            if (config[@"image"]) {
-                [item setImage:[RCTConvert UIImage:config[@"image"]]];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
+    }
+}
+
+RCT_EXPORT_METHOD(updateListTemplateRowItems:(NSString *)templateId config:(NSDictionary*)config) {
+    if (@available(iOS 14, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            CPListTemplate *listTemplate = (CPListTemplate*) template;
+            NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
+            if (sectionIndex >= listTemplate.sections.count) {
+                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
+                return;
             }
-            if (config[@"text"]) {
-                [item setText:[RCTConvert NSString:config[@"text"]]];
+            CPListSection *section = listTemplate.sections[sectionIndex];
+            NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
+            if (index >= section.items.count) {
+                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
+                return;
             }
-            if (config[@"detailText"]) {
-                [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
-            }
-            if (config[@"isPlaying"]) {
-                [item setPlaying:[RCTConvert BOOL:config[@"isPlaying"]]];
+            CPListImageRowItem *item = (CPListImageRowItem *)section.items[index];
+            if (item) {
+                if(config[@"rowItems"]) {
+                    if (@available(iOS 14.0, *)) {
+                        UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
+                        NSArray *_rowItems = [RCTConvert NSArray:config[@"rowItems"]];
+                        NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
+                        
+                        for (id rowItem in _rowItems) {
+                            if (rowItem[@"imgUrl"]) {
+                                NSString *imgUrl = rowItem[@"imgUrl"];
+                                UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
+                                if (!uiImage) {
+                                    uiImage = placeholder;
+                                }
+                                if ([rowItem[@"isArtist"] boolValue]) {
+                                    uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                                }
+                                if (uiImage) {
+                                    [loadedRowItemsImages addObject:uiImage];
+                                }
+                            }
+                        }
+                        
+                        while ([loadedRowItemsImages count] < CPMaximumNumberOfGridImages) {
+                            [loadedRowItemsImages addObject:placeholder];
+                        }
+                        
+                        [item updateImages:loadedRowItemsImages];
+                    }
+                }
             }
         } else {
             NSLog(@"Failed to find template %@", template);
@@ -777,16 +830,6 @@ RCT_EXPORT_METHOD(getMaximumRowItemsCount:(RCTPromiseResolveBlock)resolve
         resolve(@(CPMaximumNumberOfGridImages));
     }
 }
-
-//RCT_EXPORT_METHOD(updateNowPlayingTemplate:(NSString *)templateId config:(NSDictionary*)config) {
-//    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-//    if (template) {
-//        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-//        [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
-//    } else {
-//        NSLog(@"Failed to find template %@", template);
-//    }
-//}
 
 RCT_EXPORT_METHOD(updateMapTemplateConfig:(NSString *)templateId config:(NSDictionary*)config) {
     CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
@@ -1088,32 +1131,34 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 - (NSArray<CPListItem*>*)parseListItems:(NSArray*)items startIndex:(int)startIndex templateId:(NSString *)templateId {
     NSMutableArray *_items = [NSMutableArray array];
     int index = startIndex;
-    UIColor *placeholderColor = [UIColor colorWithRed:0.48 green:0.48 blue:0.48 alpha:0.9];
-    UIImage *placeholderImage = [self generatePlaceholderImageWithColor:placeholderColor];
+    UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
     for (NSDictionary *item in items) {
         NSString *_detailText = [RCTConvert NSString:item[@"detailText"]];
         NSString *_text = [RCTConvert NSString:item[@"text"]];
         UIImage *_uiImage = [RCTConvert UIImage:[item objectForKey:@"image"]];
-        NSMutableArray *_rowItems = [item objectForKey:@"rowItems"];
+        NSArray *_rowItems = [item objectForKey:@"rowItems"];
         BOOL isPlaying = [RCTConvert BOOL:item[@"isPlaying"]];
         BOOL onlyText = [RCTConvert BOOL:item[@"onlyText"]];
         
-        if (!_uiImage && !onlyText) _uiImage = placeholderImage;
-
+        if (!_uiImage && !onlyText) _uiImage = placeholder;
+        
         if(item[@"rowItems"] && templateId) {
             if (@available(iOS 14.0, *)) {
-
+                
                 NSMutableArray *loadedRowItems = [[NSMutableArray alloc] init];
                 NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
-
+                
                 for (id rowItem in _rowItems) {
                     if (rowItem[@"imgUrl"]) {
                         NSString *imgUrl = rowItem[@"imgUrl"];
                         UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
+                        if (!uiImage) {
+                            uiImage = placeholder;
+                        }
+                        if ([rowItem[@"isArtist"] boolValue]) {
+                            uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                        }
                         if (uiImage) {
-                            if ([rowItem[@"isArtist"] boolValue]) {
-                                uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
-                            }
                             [loadedRowItems addObject:rowItem];
                             [loadedRowItemsImages addObject:uiImage];
                         }
@@ -1121,37 +1166,29 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                 }
                 
                 while ([loadedRowItemsImages count] < CPMaximumNumberOfGridImages) {
-                    [loadedRowItemsImages addObject:placeholderImage];
+                    [loadedRowItemsImages addObject:placeholder];
                 }
-
+                
                 CPListImageRowItem *_imageRowItem = [[CPListImageRowItem alloc] initWithText:_text images:loadedRowItemsImages];
-
+                
                 _imageRowItem.listImageRowHandler = ^(CPListImageRowItem *item, NSInteger index, dispatch_block_t completionBlock) {
                     NSMutableDictionary *bodyDictionary = [NSMutableDictionary dictionary];
-
+                    
+                    NSNumber *indexNumber = @(index);
+                    
+                    bodyDictionary[@"index"] = indexNumber;
+                    
                     if (templateId) {
                         bodyDictionary[@"templateId"] = templateId;
                     }
-
-                    if (loadedRowItems[index][@"id"]) {
-                        bodyDictionary[@"id"] = loadedRowItems[index][@"id"];
-                    }
-
-                    if (loadedRowItems[index][@"collectionId"]) {
-                        bodyDictionary[@"collectionId"] = loadedRowItems[index][@"collectionId"];
-                    }
-
-                    if (loadedRowItems[index][@"collectionType"]) {
-                        bodyDictionary[@"collectionType"] = loadedRowItems[index][@"collectionType"];
-                    }
                     
                     [self sendEventWithName:@"didSelectRowItem" body:bodyDictionary];
-
+                    
                     if (completionBlock) {
                         completionBlock();
                     }
                 };
-
+                
                 [_imageRowItem setUserInfo:@{ @"index": @(index) }];
                 [_items addObject:_imageRowItem];
                 index = index + 1;
@@ -1160,7 +1197,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         }
         if (item[@"imgUrl"]) {
             _uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:item[@"imgUrl"]]]]];
-
+            
         }
         if ([item[@"isArtist"] boolValue]) {
             _uiImage = [self imageWithRoundedCornersSize:100 usingImage:_uiImage];
@@ -1168,8 +1205,8 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:_uiImage];
         if (@available(iOS 14, *)) {
             if (isPlaying) {
-                [_item setPlaying:isPlaying];
                 [_item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
+                [_item setPlaying:isPlaying];
             }
             if ([item objectForKey:@"showsDisclosureIndicator"]) {
                 BOOL showsDisclosureIndicator = [RCTConvert BOOL:[item objectForKey:@"showsDisclosureIndicator"]];
@@ -1185,17 +1222,17 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return _items;
 }
 
-- (UIImage *)imageWithRoundedCornersSize:(float)cornerRadius usingImage:(UIImage *)original
-{
-    UIImageView *imageView = [[UIImageView alloc] initWithImage:original];
-    UIGraphicsBeginImageContextWithOptions(imageView.bounds.size, NO, 1.0);
-    [[UIBezierPath bezierPathWithRoundedRect:imageView.bounds cornerRadius:cornerRadius] addClip];
-    [original drawInRect:imageView.bounds];
-    imageView.image = UIGraphicsGetImageFromCurrentImageContext();
+- (UIImage *)imageWithRoundedCornersSize:(float)cornerRadius usingImage:(UIImage *)original {
+    CGSize imageSize = original.size;
+    UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0.0);
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0, 0, imageSize.width, imageSize.height) cornerRadius:cornerRadius];
+    [path addClip];
+    [original drawInRect:CGRectMake(0, 0, imageSize.width, imageSize.height)];
+    UIImage *roundedImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-
-    return imageView.image;
+    return roundedImage;
 }
+
 
 - (NSArray<CPInformationItem*>*)parseInformationItems:(NSArray*)items  API_AVAILABLE(ios(14.0)){
     NSMutableArray *_items = [NSMutableArray array];

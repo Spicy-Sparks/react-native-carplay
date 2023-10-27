@@ -5,6 +5,11 @@ import { ImageSourcePropType } from 'react-native';
  */
 export interface ListItem {
   /**
+   * 
+   * The item id.
+   */
+  id?: string;
+  /**
    * The primary text displayed in the list item cell.
    */
   text: string;
@@ -21,9 +26,9 @@ export interface ListItem {
    */
   imgUrl?: string;
   /**
-   * The images from file system displayed on the row of the list item cell.
+   * The sub items arranged in a row.
    */
-   imgUrls?: Array<string>;
+  rowItems?: ListItem[];
   /**
    * A Boolean value indicating whether the list item cell shows a disclosure indicator on the trailing edge of the list item cell.
    */

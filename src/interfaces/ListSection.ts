@@ -18,8 +18,4 @@ export interface ListSection {
    * The list of items for the section.
    */
   items?: ListItem[];
-  /**
-   * The list of row items for the section.
-   */
-  rowItems?: ListItem[];
 }

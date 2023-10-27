@@ -3,6 +3,8 @@ import { ListItemUpdate } from '../interfaces/ListItemUpdate';
 import { ListSection } from '../interfaces/ListSection';
 import { Template, TemplateConfig } from './Template';
 
+type CollectionType = '' | 'playlist' | 'artist' | 'groupedArtist' | 'editorial' | 'search' | 'user' | 'allTracks' | 'allRecent' | 'allFavorites'
+
 export interface ListTemplateConfig extends TemplateConfig {
   /**
    * The title displayed in the navigation bar while the list template is visible.
@@ -48,7 +50,7 @@ export interface ListTemplateConfig extends TemplateConfig {
    * When the returned promise is resolved the spinner will hide.
    * @param item Object with the selected index
    */
-  onRowItemSelect?(item: { id: string, collectionType: string, collectionId: string }): Promise<void>;
+  onRowItemSelect?(item: { index: number }): Promise<void>;
 
   /**
    * Fired when the back button is pressed
@@ -119,6 +121,10 @@ export class ListTemplate extends Template<ListTemplateConfig> {
 
   public updateListTemplateItem = (config: ListItemUpdate) => {
     return CarPlay.bridge.updateListTemplateItem(this.id, this.parseConfig(config));
+  };
+
+  public updateListTemplateRowItems = (config: ListItemUpdate) => {
+    return CarPlay.bridge.updateListTemplateRowItems(this.id, this.parseConfig(config));
   };
 
   public getMaximumListItemCount() {
