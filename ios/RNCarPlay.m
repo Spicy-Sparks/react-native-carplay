@@ -1140,8 +1140,6 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         BOOL isPlaying = [RCTConvert BOOL:item[@"isPlaying"]];
         BOOL onlyText = [RCTConvert BOOL:item[@"onlyText"]];
         
-        if (!_uiImage && !onlyText) _uiImage = placeholder;
-        
         if(item[@"rowItems"] && templateId) {
             if (@available(iOS 14.0, *)) {
                 
@@ -1152,9 +1150,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     if (rowItem[@"imgUrl"]) {
                         NSString *imgUrl = rowItem[@"imgUrl"];
                         UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
-                        if (!uiImage) {
-                            uiImage = placeholder;
-                        }
+                        if (!uiImage) uiImage = placeholder;
                         if ([rowItem[@"isArtist"] boolValue]) {
                             uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
                         }
@@ -1195,13 +1191,26 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                 continue;
             }
         }
+        
         if (item[@"imgUrl"]) {
             _uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:item[@"imgUrl"]]]]];
-            
         }
+        
+        NSDictionary *listItemsImagesNamesMapping = @{
+            @"play-shuffle": @"PlayShuffleIcon"
+        };
+            
+        if (item[@"imageName"]) {
+            NSString *imageName = [RCTConvert NSString:item[@"imageName"]];
+            _uiImage = [UIImage imageNamed:listItemsImagesNamesMapping[imageName]];
+        }
+        
+        if (!_uiImage && !onlyText) _uiImage = placeholder;
+        
         if ([item[@"isArtist"] boolValue]) {
             _uiImage = [self imageWithRoundedCornersSize:100 usingImage:_uiImage];
         }
+        
         CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:_uiImage];
         if (@available(iOS 14, *)) {
             if (isPlaying) {
@@ -1554,16 +1563,20 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 # pragma ListTemplate
 
 - (void)listTemplate:(CPListTemplate *)listTemplate didSelectListItem:(CPListItem *)item completionHandler:(void (^)(void))completionHandler {
-    NSNumber* index = [item.userInfo objectForKey:@"index"];
-    [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
-    self.selectedResultBlock = completionHandler;
+    if (listTemplate && item) {
+        NSNumber* index = [item.userInfo objectForKey:@"index"];
+        [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
+        self.selectedResultBlock = completionHandler;
+    }
 }
 
 # pragma TabBarTemplate
 
 - (void)tabBarTemplate:(CPTabBarTemplate *)tabBarTemplate didSelectTemplate:(__kindof CPTemplate *)selectedTemplate  API_AVAILABLE(ios(14.0)){
-    NSString* selectedTemplateId = [[selectedTemplate userInfo] objectForKey:@"templateId"];
-    [self sendTemplateEventWithName:tabBarTemplate name:@"didSelectTemplate" json:@{@"selectedTemplateId":selectedTemplateId}];
+    if (tabBarTemplate && selectedTemplate) {
+        NSString* selectedTemplateId = [[selectedTemplate userInfo] objectForKey:@"templateId"];
+        [self sendTemplateEventWithName:tabBarTemplate name:@"didSelectTemplate" json:@{@"selectedTemplateId":selectedTemplateId}];
+    }
 }
 
 # pragma PointOfInterest
@@ -1596,11 +1609,15 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 # pragma NowPlaying
 
 - (void)nowPlayingTemplateUpNextButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate  API_AVAILABLE(ios(14.0)){
-    [self sendTemplateEventWithName:nowPlayingTemplate name:@"upNextButtonPressed"];
+    if (nowPlayingTemplate) {
+        [self sendTemplateEventWithName:nowPlayingTemplate name:@"upNextButtonPressed"];
+    }
 }
 
 - (void)nowPlayingTemplateAlbumArtistButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate  API_AVAILABLE(ios(14.0)){
-    [self sendTemplateEventWithName:nowPlayingTemplate name:@"albumArtistButtonPressed"];
+    if (nowPlayingTemplate) {
+        [self sendTemplateEventWithName:nowPlayingTemplate name:@"albumArtistButtonPressed"];
+    }
 }
 
 @end

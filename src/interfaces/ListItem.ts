@@ -22,6 +22,10 @@ export interface ListItem {
    */
   image?: ImageSourcePropType;
   /**
+   * The image name displayed on the leading edge of the list item cell.
+   */
+  imageName?: string;
+  /**
    * The image from file system displayed on the leading edge of the list item cell.
    */
   imgUrl?: string;
