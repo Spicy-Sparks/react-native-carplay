@@ -21,7 +21,7 @@
     hasListeners = NO;
 }
 
-+ (NSDictionary *) getConnectedWindowInformation: (CPWindow *) window {
++ (NSDictionary *) getConnectedWindowInformation: (CPWindow *) window  API_AVAILABLE(ios(12.0)){
     return @{
         @"width": @(window.bounds.size.width),
         @"height": @(window.bounds.size.height),
@@ -29,7 +29,7 @@
     };
 }
 
-+ (void) connectWithInterfaceController:(CPInterfaceController*)interfaceController window:(CPWindow*)window {
++ (void) connectWithInterfaceController:(CPInterfaceController*)interfaceController window:(CPWindow*)window  API_AVAILABLE(ios(12.0)){
     RNCPStore * store = [RNCPStore sharedManager];
     store.interfaceController = interfaceController;
     store.window = window;
@@ -163,9 +163,11 @@ RCT_EXPORT_MODULE();
 }
 
 RCT_EXPORT_METHOD(checkForConnection) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    if ([store isConnected] && hasListeners) {
-        [self sendEventWithName:@"didConnect" body:[RNCarPlay getConnectedWindowInformation: store.window]];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        if ([store isConnected] && hasListeners) {
+            [self sendEventWithName:@"didConnect" body:[RNCarPlay getConnectedWindowInformation: store.window]];
+        }
     }
 }
 
@@ -181,267 +183,273 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
 }
 
 - (void)createTemplateMethod:(NSString *)templateId config:(NSDictionary*)config {
-    // Get the shared instance of the RNCPStore class
-    RNCPStore *store = [RNCPStore sharedManager];
-
-    // Extract values from the 'config' dictionary
-    NSString *type = [RCTConvert NSString:config[@"type"]];
-    NSString *title = [RCTConvert NSString:config[@"title"]];
-    NSArray *leadingNavigationBarButtons = [self parseBarButtons:[RCTConvert NSArray:config[@"leadingNavigationBarButtons"]] templateId:templateId];
-    NSArray *trailingNavigationBarButtons = [self parseBarButtons:[RCTConvert NSArray:config[@"trailingNavigationBarButtons"]] templateId:templateId];
-    
-    // Create a new CPTemplate object
-    CPTemplate *carPlayTemplate = [[CPTemplate alloc] init];
-
-    if ([type isEqualToString:@"search"]) {
-        CPSearchTemplate *searchTemplate = [[CPSearchTemplate alloc] init];
-        searchTemplate.delegate = self;
-        carPlayTemplate = searchTemplate;
-    }
-    else if ([type isEqualToString:@"grid"]) {
-        NSArray *buttons = [self parseGridButtons:[RCTConvert NSArray:config[@"buttons"]] templateId:templateId];
-        CPGridTemplate *gridTemplate = [[CPGridTemplate alloc] initWithTitle:title gridButtons:buttons];
-        [gridTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
-        [gridTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
-        carPlayTemplate = gridTemplate;
-    }
-    else if ([type isEqualToString:@"list"]) {
-        if (@available(iOS 14, *)) {
-            NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]] templateId:templateId];
-            CPListTemplate *listTemplate;
-            if (@available(iOS 15.0, *)) {
-                if ([config objectForKey:@"assistant"]) {
-                    NSDictionary *assistant = [config objectForKey:@"assistant"];
-                    BOOL _enabled = [assistant valueForKey:@"enabled"];
-                    if (_enabled) {
-                        CPAssistantCellConfiguration *conf = [[CPAssistantCellConfiguration alloc] initWithPosition:CPAssistantCellPositionTop visibility:CPAssistantCellVisibilityAlways assistantAction:CPAssistantCellActionTypePlayMedia];
-                        listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections assistantCellConfiguration:conf];
-                    }
-                }
-            }
-            if (listTemplate == nil) {
-                // Fallback on earlier versions
-                listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
-            }
-            [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
-            [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
-            if (![RCTConvert BOOL:config[@"backButtonHidden"]]) {
-                CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
-                    if (self->hasListeners) {
-                        [self sendEventWithName:@"backButtonPressed" body:@{@"templateId":templateId}];
-                    }
-                    [self popTemplate:false];
-                }];
-                [listTemplate setBackButton:backButton];
-            }
-            if (config[@"emptyViewTitleVariants"]) {
-                listTemplate.emptyViewTitleVariants = [RCTConvert NSArray:config[@"emptyViewTitleVariants"]];
-            }
-            if (config[@"emptyViewSubtitleVariants"]) {
-                listTemplate.emptyViewSubtitleVariants = [RCTConvert NSArray:config[@"emptyViewSubtitleVariants"]];
-            }
-            listTemplate.delegate = self;
-            carPlayTemplate = listTemplate;
-        } else {
-            NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]] templateId:templateId];
-            CPListTemplate *listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
-            [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
-            [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
-            listTemplate.delegate = self;
-            carPlayTemplate = listTemplate;
-        }
-    }
-    else if ([type isEqualToString:@"map"]) {
-        CPMapTemplate *mapTemplate = [[CPMapTemplate alloc] init];
-
-        [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
-        [mapTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
-        [mapTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
-        [mapTemplate setUserInfo:@{ @"templateId": templateId }];
-        mapTemplate.mapDelegate = self;
-
-        carPlayTemplate = mapTemplate;
-    } else if ([type isEqualToString:@"voicecontrol"]) {
-        CPVoiceControlTemplate *voiceTemplate = [[CPVoiceControlTemplate alloc] initWithVoiceControlStates: [self parseVoiceControlStates:config[@"voiceControlStates"]]];
-        carPlayTemplate = voiceTemplate;
-    } else if ([type isEqualToString:@"nowplaying"]) {
-        if (@available(iOS 14, *)) {
-            CPNowPlayingTemplate *nowPlayingTemplate = [CPNowPlayingTemplate sharedTemplate];
-            [nowPlayingTemplate setAlbumArtistButtonEnabled:[RCTConvert BOOL:config[@"albumArtistButtonEnabled"]]];
-            [nowPlayingTemplate setUpNextTitle:[RCTConvert NSString:config[@"upNextButtonTitle"]]];
-            [nowPlayingTemplate setUpNextButtonEnabled:[RCTConvert BOOL:config[@"upNextButtonEnabled"]]];
-            NSMutableArray<CPNowPlayingButton *> *buttons = [NSMutableArray new];
-            NSArray<NSDictionary*> *_buttons = [RCTConvert NSDictionaryArray:config[@"buttons"]];
-            
-            NSDictionary *buttonImagesNamesMapping = @{
-                @"heart": @"HeartIcon",
-                @"heart-outlined": @"HeartOutlinedIcon",
-                @"clock": @"ClockNowIcon",
-                @"arrow-down-circle": @"ArrowDownCircleIcon",
-                @"md-close": @"CloseIcon",
-                @"repeat": @"RepeatIcon",
-                @"shuffle": @"ShuffleIcon"
-            };
-            
-            for (NSDictionary *_button in _buttons) {
-                NSString *id = [RCTConvert NSString:_button[@"id"]];
-                NSString *imageName = [RCTConvert NSString:_button[@"imageName"]];
-                BOOL selected = [RCTConvert BOOL:_button[@"selected"]];
-                NSDictionary *body = @{@"templateId":templateId, @"id": id};
-                UIImage *buttonImage = [UIImage imageNamed:buttonImagesNamesMapping[imageName]];
-                if (buttonImage) {
-                    CPNowPlayingButton *button = [CPNowPlayingImageButton.alloc initWithImage:buttonImage handler:^(CPNowPlayingImageButton*) {
-                        if (self->hasListeners) {
-                            [self sendEventWithName:@"buttonPressed" body:body];
-                        }
-                    }];
-                    button.selected = selected;
-                    [buttons addObject:button];
-                }
-            }
-            [nowPlayingTemplate updateNowPlayingButtons:buttons];
-            carPlayTemplate = nowPlayingTemplate;
-        }
-    } else if ([type isEqualToString:@"tabbar"]) {
-        if (@available(iOS 14, *)) {
-            CPTabBarTemplate *tabBarTemplate = [[CPTabBarTemplate alloc] initWithTemplates:[self parseTemplatesFrom:config]];
-            tabBarTemplate.delegate = self;
-            carPlayTemplate = tabBarTemplate;
-        }
-    } else if ([type isEqualToString:@"contact"]) {
-        if (@available(iOS 14, *)) {
-            NSString *nm = [RCTConvert NSString:config[@"name"]];
-            UIImage *img = [RCTConvert UIImage:config[@"image"]];
-            CPContact *contact = [[CPContact alloc] initWithName:nm image:img];
-            [contact setSubtitle:config[@"subtitle"]];
-            [contact setActions:[self parseButtons:config[@"actions"] templateId:templateId]];
-            CPContactTemplate *contactTemplate = [[CPContactTemplate alloc] initWithContact:contact];
-            carPlayTemplate = contactTemplate;
-        }
-    } else if ([type isEqualToString:@"actionsheet"]) {
+    if (@available(iOS 12.0, *)) {
+        // Get the shared instance of the RNCPStore class
+        RNCPStore *store = [RNCPStore sharedManager];
+        
+        // Extract values from the 'config' dictionary
+        NSString *type = [RCTConvert NSString:config[@"type"]];
         NSString *title = [RCTConvert NSString:config[@"title"]];
-        NSString *message = [RCTConvert NSString:config[@"message"]];
-        NSMutableArray<CPAlertAction *> *actions = [NSMutableArray new];
-        NSArray<NSDictionary*> *_actions = [RCTConvert NSDictionaryArray:config[@"actions"]];
-        for (NSDictionary *_action in _actions) {
-            CPAlertAction *action = [[CPAlertAction alloc] initWithTitle:[RCTConvert NSString:_action[@"title"]] style:[RCTConvert CPAlertActionStyle:_action[@"style"]] handler:^(CPAlertAction *a) {
-                if (self->hasListeners) {
-                    [self sendEventWithName:@"actionButtonPressed" body:@{@"templateId":templateId, @"id": _action[@"id"] }];
+        NSArray *leadingNavigationBarButtons = [self parseBarButtons:[RCTConvert NSArray:config[@"leadingNavigationBarButtons"]] templateId:templateId];
+        NSArray *trailingNavigationBarButtons = [self parseBarButtons:[RCTConvert NSArray:config[@"trailingNavigationBarButtons"]] templateId:templateId];
+        
+        // Create a new CPTemplate object
+        CPTemplate *carPlayTemplate = [[CPTemplate alloc] init];
+        
+        if ([type isEqualToString:@"search"]) {
+            CPSearchTemplate *searchTemplate = [[CPSearchTemplate alloc] init];
+            searchTemplate.delegate = self;
+            carPlayTemplate = searchTemplate;
+        }
+        else if ([type isEqualToString:@"grid"]) {
+            NSArray *buttons = [self parseGridButtons:[RCTConvert NSArray:config[@"buttons"]] templateId:templateId];
+            CPGridTemplate *gridTemplate = [[CPGridTemplate alloc] initWithTitle:title gridButtons:buttons];
+            [gridTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+            [gridTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+            carPlayTemplate = gridTemplate;
+        }
+        else if ([type isEqualToString:@"list"]) {
+            if (@available(iOS 14, *)) {
+                NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]] templateId:templateId];
+                CPListTemplate *listTemplate;
+                if (@available(iOS 15.0, *)) {
+                    if ([config objectForKey:@"assistant"]) {
+                        NSDictionary *assistant = [config objectForKey:@"assistant"];
+                        BOOL _enabled = [assistant valueForKey:@"enabled"];
+                        if (_enabled) {
+                            CPAssistantCellConfiguration *conf = [[CPAssistantCellConfiguration alloc] initWithPosition:CPAssistantCellPositionTop visibility:CPAssistantCellVisibilityAlways assistantAction:CPAssistantCellActionTypePlayMedia];
+                            listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections assistantCellConfiguration:conf];
+                        }
+                    }
                 }
-            }];
-            [actions addObject:action];
-        }
-        CPActionSheetTemplate *actionSheetTemplate = [[CPActionSheetTemplate alloc] initWithTitle:title message:message actions:actions];
-        carPlayTemplate = actionSheetTemplate;
-    } else if ([type isEqualToString:@"alert"]) {
-        NSMutableArray<CPAlertAction *> *actions = [NSMutableArray new];
-        NSArray<NSDictionary*> *_actions = [RCTConvert NSDictionaryArray:config[@"actions"]];
-        for (NSDictionary *_action in _actions) {
-            CPAlertAction *action = [[CPAlertAction alloc] initWithTitle:[RCTConvert NSString:_action[@"title"]] style:[RCTConvert CPAlertActionStyle:_action[@"style"]] handler:^(CPAlertAction *a) {
-                if (self->hasListeners) {
-                    [self sendEventWithName:@"actionButtonPressed" body:@{@"templateId":templateId, @"id": _action[@"id"] }];
+                if (listTemplate == nil) {
+                    // Fallback on earlier versions
+                    listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
                 }
-            }];
-            [actions addObject:action];
-        }
-        NSArray<NSString*>* titleVariants = [RCTConvert NSArray:config[@"titleVariants"]];
-        CPAlertTemplate *alertTemplate = [[CPAlertTemplate alloc] initWithTitleVariants:titleVariants actions:actions];
-        carPlayTemplate = alertTemplate;
-    } else if ([type isEqualToString:@"poi"]) {
-        if (@available(iOS 14, *)) {
-            NSString *title = [RCTConvert NSString:config[@"title"]];
-            NSMutableArray<__kindof CPPointOfInterest *> * items = [NSMutableArray new];
-            NSUInteger selectedIndex = 0;
-            
-            NSArray<NSDictionary*> *_items = [RCTConvert NSDictionaryArray:config[@"items"]];
-            for (NSDictionary *_item in _items) {
-                CPPointOfInterest *poi = [RCTConvert CPPointOfInterest:_item];
-                [poi setUserInfo:_item];
-                [items addObject:poi];
+                [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+                [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+                if (![RCTConvert BOOL:config[@"backButtonHidden"]]) {
+                    CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
+                        if (self->hasListeners) {
+                            [self sendEventWithName:@"backButtonPressed" body:@{@"templateId":templateId}];
+                        }
+                        [self popTemplate:false];
+                    }];
+                    [listTemplate setBackButton:backButton];
+                }
+                if (config[@"emptyViewTitleVariants"]) {
+                    listTemplate.emptyViewTitleVariants = [RCTConvert NSArray:config[@"emptyViewTitleVariants"]];
+                }
+                if (config[@"emptyViewSubtitleVariants"]) {
+                    listTemplate.emptyViewSubtitleVariants = [RCTConvert NSArray:config[@"emptyViewSubtitleVariants"]];
+                }
+                listTemplate.delegate = self;
+                carPlayTemplate = listTemplate;
+            } else {
+                NSArray *sections = [self parseSections:[RCTConvert NSArray:config[@"sections"]] templateId:templateId];
+                CPListTemplate *listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections];
+                [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+                [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+                listTemplate.delegate = self;
+                carPlayTemplate = listTemplate;
             }
-            
-            CPPointOfInterestTemplate *poiTemplate = [[CPPointOfInterestTemplate alloc] initWithTitle:title pointsOfInterest:items selectedIndex:selectedIndex];
-            poiTemplate.pointOfInterestDelegate = self;
-            carPlayTemplate = poiTemplate;
         }
-    } else if ([type isEqualToString:@"information"]) {
-        if (@available(iOS 14, *)) {
-            NSString *title = [RCTConvert NSString:config[@"title"]];
-            CPInformationTemplateLayout layout = [RCTConvert BOOL:config[@"leading"]] ? CPInformationTemplateLayoutLeading : CPInformationTemplateLayoutTwoColumn;
-            NSMutableArray<__kindof CPInformationItem *> * items = [NSMutableArray new];
-            NSMutableArray<__kindof CPTextButton *> * actions = [NSMutableArray new];
+        else if ([type isEqualToString:@"map"]) {
+            CPMapTemplate *mapTemplate = [[CPMapTemplate alloc] init];
             
-            NSArray<NSDictionary*> *_items = [RCTConvert NSDictionaryArray:config[@"items"]];
-            for (NSDictionary *_item in _items) {
-                [items addObject:[[CPInformationItem alloc] initWithTitle:_item[@"title"] detail:_item[@"detail"]]];
+            [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
+            [mapTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
+            [mapTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
+            [mapTemplate setUserInfo:@{ @"templateId": templateId }];
+            mapTemplate.mapDelegate = self;
+            
+            carPlayTemplate = mapTemplate;
+        } else if ([type isEqualToString:@"voicecontrol"]) {
+            CPVoiceControlTemplate *voiceTemplate = [[CPVoiceControlTemplate alloc] initWithVoiceControlStates: [self parseVoiceControlStates:config[@"voiceControlStates"]]];
+            carPlayTemplate = voiceTemplate;
+        } else if ([type isEqualToString:@"nowplaying"]) {
+            if (@available(iOS 14, *)) {
+                CPNowPlayingTemplate *nowPlayingTemplate = [CPNowPlayingTemplate sharedTemplate];
+                [nowPlayingTemplate setAlbumArtistButtonEnabled:[RCTConvert BOOL:config[@"albumArtistButtonEnabled"]]];
+                [nowPlayingTemplate setUpNextTitle:[RCTConvert NSString:config[@"upNextButtonTitle"]]];
+                [nowPlayingTemplate setUpNextButtonEnabled:[RCTConvert BOOL:config[@"upNextButtonEnabled"]]];
+                NSMutableArray<CPNowPlayingButton *> *buttons = [NSMutableArray new];
+                NSArray<NSDictionary*> *_buttons = [RCTConvert NSDictionaryArray:config[@"buttons"]];
+                
+                NSDictionary *buttonImagesNamesMapping = @{
+                    @"heart": @"HeartIcon",
+                    @"heart-outlined": @"HeartOutlinedIcon",
+                    @"clock": @"ClockNowIcon",
+                    @"arrow-down-circle": @"ArrowDownCircleIcon",
+                    @"md-close": @"CloseIcon",
+                    @"repeat": @"RepeatIcon",
+                    @"shuffle": @"ShuffleIcon"
+                };
+                
+                for (NSDictionary *_button in _buttons) {
+                    NSString *id = [RCTConvert NSString:_button[@"id"]];
+                    NSString *imageName = [RCTConvert NSString:_button[@"imageName"]];
+                    BOOL selected = [RCTConvert BOOL:_button[@"selected"]];
+                    NSDictionary *body = @{@"templateId":templateId, @"id": id};
+                    UIImage *buttonImage = [UIImage imageNamed:buttonImagesNamesMapping[imageName]];
+                    if (buttonImage) {
+                        CPNowPlayingButton *button = [CPNowPlayingImageButton.alloc initWithImage:buttonImage handler:^(CPNowPlayingImageButton *b) {
+                            if (self->hasListeners) {
+                                [self sendEventWithName:@"buttonPressed" body:body];
+                            }
+                        }];
+                        button.selected = selected;
+                        [buttons addObject:button];
+                    }
+                }
+                [nowPlayingTemplate updateNowPlayingButtons:buttons];
+                carPlayTemplate = nowPlayingTemplate;
             }
-            
+        } else if ([type isEqualToString:@"tabbar"]) {
+            if (@available(iOS 14, *)) {
+                CPTabBarTemplate *tabBarTemplate = [[CPTabBarTemplate alloc] initWithTemplates:[self parseTemplatesFrom:config]];
+                tabBarTemplate.delegate = self;
+                carPlayTemplate = tabBarTemplate;
+            }
+        } else if ([type isEqualToString:@"contact"]) {
+            if (@available(iOS 14, *)) {
+                NSString *nm = [RCTConvert NSString:config[@"name"]];
+                UIImage *img = [RCTConvert UIImage:config[@"image"]];
+                CPContact *contact = [[CPContact alloc] initWithName:nm image:img];
+                [contact setSubtitle:config[@"subtitle"]];
+                [contact setActions:[self parseButtons:config[@"actions"] templateId:templateId]];
+                CPContactTemplate *contactTemplate = [[CPContactTemplate alloc] initWithContact:contact];
+                carPlayTemplate = contactTemplate;
+            }
+        } else if ([type isEqualToString:@"actionsheet"]) {
+            NSString *title = [RCTConvert NSString:config[@"title"]];
+            NSString *message = [RCTConvert NSString:config[@"message"]];
+            NSMutableArray<CPAlertAction *> *actions = [NSMutableArray new];
             NSArray<NSDictionary*> *_actions = [RCTConvert NSDictionaryArray:config[@"actions"]];
             for (NSDictionary *_action in _actions) {
-                CPTextButton *action = [[CPTextButton alloc] initWithTitle:_action[@"title"] textStyle:CPTextButtonStyleNormal handler:^(__kindof CPTextButton * _Nonnull contactButton) {
+                CPAlertAction *action = [[CPAlertAction alloc] initWithTitle:[RCTConvert NSString:_action[@"title"]] style:[RCTConvert CPAlertActionStyle:_action[@"style"]] handler:^(CPAlertAction *a) {
                     if (self->hasListeners) {
                         [self sendEventWithName:@"actionButtonPressed" body:@{@"templateId":templateId, @"id": _action[@"id"] }];
                     }
                 }];
                 [actions addObject:action];
             }
-            
-            CPInformationTemplate *informationTemplate = [[CPInformationTemplate alloc] initWithTitle:title layout:layout items:items actions:actions];
-            carPlayTemplate = informationTemplate;
+            CPActionSheetTemplate *actionSheetTemplate = [[CPActionSheetTemplate alloc] initWithTitle:title message:message actions:actions];
+            carPlayTemplate = actionSheetTemplate;
+        } else if ([type isEqualToString:@"alert"]) {
+            NSMutableArray<CPAlertAction *> *actions = [NSMutableArray new];
+            NSArray<NSDictionary*> *_actions = [RCTConvert NSDictionaryArray:config[@"actions"]];
+            for (NSDictionary *_action in _actions) {
+                CPAlertAction *action = [[CPAlertAction alloc] initWithTitle:[RCTConvert NSString:_action[@"title"]] style:[RCTConvert CPAlertActionStyle:_action[@"style"]] handler:^(CPAlertAction *a) {
+                    if (self->hasListeners) {
+                        [self sendEventWithName:@"actionButtonPressed" body:@{@"templateId":templateId, @"id": _action[@"id"] }];
+                    }
+                }];
+                [actions addObject:action];
+            }
+            NSArray<NSString*>* titleVariants = [RCTConvert NSArray:config[@"titleVariants"]];
+            CPAlertTemplate *alertTemplate = [[CPAlertTemplate alloc] initWithTitleVariants:titleVariants actions:actions];
+            carPlayTemplate = alertTemplate;
+        } else if ([type isEqualToString:@"poi"]) {
+            if (@available(iOS 14, *)) {
+                NSString *title = [RCTConvert NSString:config[@"title"]];
+                NSMutableArray<__kindof CPPointOfInterest *> * items = [NSMutableArray new];
+                NSUInteger selectedIndex = 0;
+                
+                NSArray<NSDictionary*> *_items = [RCTConvert NSDictionaryArray:config[@"items"]];
+                for (NSDictionary *_item in _items) {
+                    CPPointOfInterest *poi = [RCTConvert CPPointOfInterest:_item];
+                    [poi setUserInfo:_item];
+                    [items addObject:poi];
+                }
+                
+                CPPointOfInterestTemplate *poiTemplate = [[CPPointOfInterestTemplate alloc] initWithTitle:title pointsOfInterest:items selectedIndex:selectedIndex];
+                poiTemplate.pointOfInterestDelegate = self;
+                carPlayTemplate = poiTemplate;
+            }
+        } else if ([type isEqualToString:@"information"]) {
+            if (@available(iOS 14, *)) {
+                NSString *title = [RCTConvert NSString:config[@"title"]];
+                CPInformationTemplateLayout layout = [RCTConvert BOOL:config[@"leading"]] ? CPInformationTemplateLayoutLeading : CPInformationTemplateLayoutTwoColumn;
+                NSMutableArray<__kindof CPInformationItem *> * items = [NSMutableArray new];
+                NSMutableArray<__kindof CPTextButton *> * actions = [NSMutableArray new];
+                
+                NSArray<NSDictionary*> *_items = [RCTConvert NSDictionaryArray:config[@"items"]];
+                for (NSDictionary *_item in _items) {
+                    [items addObject:[[CPInformationItem alloc] initWithTitle:_item[@"title"] detail:_item[@"detail"]]];
+                }
+                
+                NSArray<NSDictionary*> *_actions = [RCTConvert NSDictionaryArray:config[@"actions"]];
+                for (NSDictionary *_action in _actions) {
+                    CPTextButton *action = [[CPTextButton alloc] initWithTitle:_action[@"title"] textStyle:CPTextButtonStyleNormal handler:^(__kindof CPTextButton * _Nonnull contactButton) {
+                        if (self->hasListeners) {
+                            [self sendEventWithName:@"actionButtonPressed" body:@{@"templateId":templateId, @"id": _action[@"id"] }];
+                        }
+                    }];
+                    [actions addObject:action];
+                }
+                
+                CPInformationTemplate *informationTemplate = [[CPInformationTemplate alloc] initWithTitle:title layout:layout items:items actions:actions];
+                carPlayTemplate = informationTemplate;
+            }
         }
+        
+        if (@available(iOS 14, *)) {
+            if (config[@"tabSystemItem"]) {
+                carPlayTemplate.tabSystemItem = [RCTConvert NSInteger:config[@"tabSystemItem"]];
+            }
+            if (config[@"tabSystemImageName"]) {
+                carPlayTemplate.tabImage = [UIImage systemImageNamed:[RCTConvert NSString:config[@"tabSystemImageName"]]];
+            }
+            if (config[@"tabImage"]) {
+                carPlayTemplate.tabImage = [RCTConvert UIImage:config[@"tabImage"]];
+            }
+            if (config[@"tabImageName"]) {
+                NSDictionary *tabImagesNamesMapping = @{
+                    @"home": @"HomeIcon",
+                    @"clock": @"ClockTabIcon",
+                    @"search": @"SearchIcon",
+                    @"music": @"MusicIcon",
+                };
+                NSString *imageName = [RCTConvert NSString:config[@"tabImageName"]];
+                carPlayTemplate.tabImage = [UIImage imageNamed: tabImagesNamesMapping[imageName]];
+            }
+            if (config[@"tabTitle"]) {
+                carPlayTemplate.tabTitle = [RCTConvert NSString:config[@"tabTitle"]];
+            }
+        }
+        
+        [carPlayTemplate setUserInfo:@{ @"templateId": templateId }];
+        [store setTemplate:templateId template:carPlayTemplate];
     }
-
-    if (@available(iOS 14, *)) {
-        if (config[@"tabSystemItem"]) {
-            carPlayTemplate.tabSystemItem = [RCTConvert NSInteger:config[@"tabSystemItem"]];
-        }
-        if (config[@"tabSystemImageName"]) {
-            carPlayTemplate.tabImage = [UIImage systemImageNamed:[RCTConvert NSString:config[@"tabSystemImageName"]]];
-        }
-        if (config[@"tabImage"]) {
-            carPlayTemplate.tabImage = [RCTConvert UIImage:config[@"tabImage"]];
-        }
-        if (config[@"tabImageName"]) {
-            NSDictionary *tabImagesNamesMapping = @{
-                @"home": @"HomeIcon",
-                @"clock": @"ClockTabIcon",
-                @"search": @"SearchIcon",
-                @"music": @"MusicIcon",
-            };
-            NSString *imageName = [RCTConvert NSString:config[@"tabImageName"]];
-            carPlayTemplate.tabImage = [UIImage imageNamed: tabImagesNamesMapping[imageName]];
-        }
-        if (config[@"tabTitle"]) {
-            carPlayTemplate.tabTitle = [RCTConvert NSString:config[@"tabTitle"]];
-        }
-    }
-
-    [carPlayTemplate setUserInfo:@{ @"templateId": templateId }];
-    [store setTemplate:templateId template:carPlayTemplate];
 }
 
 RCT_EXPORT_METHOD(createTrip:(NSString*)tripId config:(NSDictionary*)config) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTrip *trip = [self parseTrip:config];
-    NSMutableDictionary *userInfo = trip.userInfo;
-    if (!userInfo) {
-        userInfo = [[NSMutableDictionary alloc] init];
-        trip.userInfo = userInfo;
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTrip *trip = [self parseTrip:config];
+        NSMutableDictionary *userInfo = trip.userInfo;
+        if (!userInfo) {
+            userInfo = [[NSMutableDictionary alloc] init];
+            trip.userInfo = userInfo;
+        }
+        
+        [userInfo setValue:tripId forKey:@"id"];
+        [store setTrip:tripId trip:trip];
     }
-
-    [userInfo setValue:tripId forKey:@"id"];
-    [store setTrip:tripId trip:trip];
 }
 
 RCT_EXPORT_METHOD(updateTravelEstimatesForTrip:(NSString*)templateId tripId:(NSString*)tripId travelEstimates:(NSDictionary*)travelEstimates timeRemainingColor:(NSUInteger*)timeRemainingColor) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
-        if (trip) {
-            CPTravelEstimates *estimates = [self parseTravelEstimates:travelEstimates];
-            [mapTemplate updateTravelEstimates:estimates forTrip:trip withTimeRemainingColor:(CPTimeRemainingColor) timeRemainingColor];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
+            if (trip) {
+                CPTravelEstimates *estimates = [self parseTravelEstimates:travelEstimates];
+                [mapTemplate updateTravelEstimates:estimates forTrip:trip withTimeRemainingColor:(CPTimeRemainingColor) timeRemainingColor];
+            }
         }
     }
 }
@@ -451,165 +459,191 @@ RCT_REMAP_METHOD(startNavigationSession,
                  tripId:(NSString *)tripId
                  startNavigationSessionWithResolver:(RCTPromiseResolveBlock)resolve
                  rejecter:(RCTPromiseRejectBlock)reject) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
-        if (trip) {
-            CPNavigationSession *navigationSession = [mapTemplate startNavigationSessionForTrip:trip];
-            [store setNavigationSession:tripId navigationSession:navigationSession];
-            resolve(@{ @"tripId": tripId, @"navigationSessionId": tripId });
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
+            if (trip) {
+                CPNavigationSession *navigationSession = [mapTemplate startNavigationSessionForTrip:trip];
+                [store setNavigationSession:tripId navigationSession:navigationSession];
+                resolve(@{ @"tripId": tripId, @"navigationSessionId": tripId });
+            }
+        } else {
+            reject(@"template_not_found", @"Template not found in store", nil);
         }
-    } else {
-        reject(@"template_not_found", @"Template not found in store", nil);
     }
 }
 
 RCT_EXPORT_METHOD(updateManeuversNavigationSession:(NSString*)navigationSessionId maneuvers:(NSArray*)maneuvers) {
-    CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
-    if (navigationSession) {
-        NSMutableArray<CPManeuver*>* upcomingManeuvers = [NSMutableArray array];
-        for (NSDictionary *maneuver in maneuvers) {
-            [upcomingManeuvers addObject:[self parseManeuver:maneuver]];
+    if (@available(iOS 12.0, *)) {
+        CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
+        if (navigationSession) {
+            NSMutableArray<CPManeuver*>* upcomingManeuvers = [NSMutableArray array];
+            for (NSDictionary *maneuver in maneuvers) {
+                [upcomingManeuvers addObject:[self parseManeuver:maneuver]];
+            }
+            [navigationSession setUpcomingManeuvers:upcomingManeuvers];
         }
-        [navigationSession setUpcomingManeuvers:upcomingManeuvers];
     }
 }
 
 RCT_EXPORT_METHOD(updateTravelEstimatesNavigationSession:(NSString*)navigationSessionId maneuverIndex:(NSUInteger)maneuverIndex travelEstimates:(NSDictionary*)travelEstimates) {
-    CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
-    if (navigationSession) {
-        CPManeuver *maneuver = [[navigationSession upcomingManeuvers] objectAtIndex:maneuverIndex];
-        if (maneuver) {
-            [navigationSession updateTravelEstimates:[self parseTravelEstimates:travelEstimates] forManeuver:maneuver];
+    if (@available(iOS 12.0, *)) {
+        CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
+        if (navigationSession) {
+            CPManeuver *maneuver = [[navigationSession upcomingManeuvers] objectAtIndex:maneuverIndex];
+            if (maneuver) {
+                [navigationSession updateTravelEstimates:[self parseTravelEstimates:travelEstimates] forManeuver:maneuver];
+            }
         }
     }
 }
 
 RCT_EXPORT_METHOD(pauseNavigationSession:(NSString*)navigationSessionId reason:(NSUInteger*)reason description:(NSString*)description) {
-    CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
-    if (navigationSession) {
-        [navigationSession pauseTripForReason:(CPTripPauseReason) reason description:description];
-    } else {
-        NSLog(@"Could not find session");
+    if (@available(iOS 12.0, *)) {
+        CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
+        if (navigationSession) {
+            [navigationSession pauseTripForReason:(CPTripPauseReason) reason description:description];
+        } else {
+            NSLog(@"Could not find session");
+        }
     }
 }
 
 RCT_EXPORT_METHOD(cancelNavigationSession:(NSString*)navigationSessionId) {
-    CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
-    if (navigationSession) {
-        [navigationSession cancelTrip];
-    } else {
-        NSLog(@"Could not cancel. No session found.");
+    if (@available(iOS 12.0, *)) {
+        CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
+        if (navigationSession) {
+            [navigationSession cancelTrip];
+        } else {
+            NSLog(@"Could not cancel. No session found.");
+        }
     }
 }
 
 RCT_EXPORT_METHOD(finishNavigationSession:(NSString*)navigationSessionId) {
-    CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
-    if (navigationSession) {
-        [navigationSession finishTrip];
+    if (@available(iOS 12.0, *)) {
+        CPNavigationSession* navigationSession = [[RNCPStore sharedManager] findNavigationSessionById:navigationSessionId];
+        if (navigationSession) {
+            [navigationSession finishTrip];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-
-    store.interfaceController.delegate = self;
-
-    if (template) {
-        if (@available(iOS 14, *)) {
-            [store.interfaceController setRootTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                NSLog(@"error %@", err);
-                // noop
-            }];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        
+        store.interfaceController.delegate = self;
+        
+        if (template) {
+            if (@available(iOS 14, *)) {
+                [store.interfaceController setRootTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
+                    NSLog(@"error %@", err);
+                    // noop
+                }];
+            } else {
+                [store.interfaceController setRootTemplate:template animated:animated];
+            }
         } else {
-            [store.interfaceController setRootTemplate:template animated:animated];
+            NSLog(@"Failed to find template %@", template);
         }
-    } else {
-        NSLog(@"Failed to find template %@", template);
     }
 }
 
 RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        if (@available(iOS 14, *)) {
-            [store.interfaceController pushTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                NSLog(@"error %@", err);
-                // noop
-            }];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            if (@available(iOS 14, *)) {
+                [store.interfaceController pushTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
+                    NSLog(@"error %@", err);
+                    // noop
+                }];
+            } else {
+                [store.interfaceController pushTemplate:template animated:animated];
+            }
         } else {
-            [store.interfaceController pushTemplate:template animated:animated];
+            NSLog(@"Failed to find template %@", template);
         }
-    } else {
-        NSLog(@"Failed to find template %@", template);
     }
 }
 
 RCT_EXPORT_METHOD(popToTemplate:(NSString *)templateId animated:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        if (@available(iOS 14, *)) {
-            [store.interfaceController popToTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                NSLog(@"error %@", err);
-                // noop
-            }];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            if (@available(iOS 14, *)) {
+                [store.interfaceController popToTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
+                    NSLog(@"error %@", err);
+                    // noop
+                }];
+            } else {
+                [store.interfaceController popToTemplate:template animated:animated];
+            }
         } else {
-            [store.interfaceController popToTemplate:template animated:animated];
+            NSLog(@"Failed to find template %@", template);
         }
-    } else {
-        NSLog(@"Failed to find template %@", template);
     }
 }
 
 RCT_EXPORT_METHOD(popToRootTemplate:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    if (@available(iOS 14, *)) {
-        [store.interfaceController popToRootTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
-            NSLog(@"error %@", err);
-            // noop
-        }];
-    } else {
-        [store.interfaceController popToRootTemplateAnimated:animated];
-    }
-}
-
-RCT_EXPORT_METHOD(popTemplate:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    if (@available(iOS 14, *)) {
-        [store.interfaceController popTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
-            NSLog(@"error %@", err);
-            // noop
-        }];
-    } else {
-        [store.interfaceController popTemplateAnimated:animated];
-    }
-}
-
-RCT_EXPORT_METHOD(presentTemplate:(NSString *)templateId animated:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
         if (@available(iOS 14, *)) {
-            [store.interfaceController presentTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
+            [store.interfaceController popToRootTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
                 NSLog(@"error %@", err);
                 // noop
             }];
         } else {
-            [store.interfaceController presentTemplate:template animated:animated];
+            [store.interfaceController popToRootTemplateAnimated:animated];
         }
-    } else {
-        NSLog(@"Failed to find template %@", template);
+    }
+}
+
+RCT_EXPORT_METHOD(popTemplate:(BOOL)animated) {
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        if (@available(iOS 14, *)) {
+            [store.interfaceController popTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
+                NSLog(@"error %@", err);
+                // noop
+            }];
+        } else {
+            [store.interfaceController popTemplateAnimated:animated];
+        }
+    }
+}
+
+RCT_EXPORT_METHOD(presentTemplate:(NSString *)templateId animated:(BOOL)animated) {
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            if (@available(iOS 14, *)) {
+                [store.interfaceController presentTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
+                    NSLog(@"error %@", err);
+                    // noop
+                }];
+            } else {
+                [store.interfaceController presentTemplate:template animated:animated];
+            }
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
 RCT_EXPORT_METHOD(dismissTemplate:(BOOL)animated) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    [store.interfaceController dismissTemplateAnimated:animated];
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        [store.interfaceController dismissTemplateAnimated:animated];
+    }
 }
 
 RCT_EXPORT_METHOD(updateListTemplate:(NSString*)templateId config:(NSDictionary*)config) {
@@ -652,15 +686,17 @@ RCT_EXPORT_METHOD(updateTabBarTemplates:(NSString *)templateId templates:(NSDict
 
 
 RCT_EXPORT_METHOD(updateListTemplateSections:(NSString *)templateId sections:(NSArray*)sections) {
-    RNCPStore *store = [RNCPStore sharedManager];
-    CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        CPListTemplate *listTemplate = (CPListTemplate*) template;
-        [self parseSections:sections templateId:templateId completion:^(NSArray<CPListSection*> *parsedSections) {
-            [listTemplate updateSections:parsedSections];
-        }];
-    } else {
-        NSLog(@"Failed to find template %@", template);
+    if (@available(iOS 12.0, *)) {
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            CPListTemplate *listTemplate = (CPListTemplate*) template;
+            [self parseSections:sections templateId:templateId completion:^(NSArray<CPListSection*> *parsedSections) {
+                [listTemplate updateSections:parsedSections];
+            }];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
@@ -672,13 +708,13 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
             CPListTemplate *listTemplate = (CPListTemplate*) template;
             NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
             if (sectionIndex >= listTemplate.sections.count) {
-                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
+//                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
                 return;
             }
             CPListSection *section = listTemplate.sections[sectionIndex];
             NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
             if (index >= section.items.count) {
-                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
+//                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
                 return;
             }
             CPListItem *item = (CPListItem *)section.items[index];
@@ -719,45 +755,43 @@ RCT_EXPORT_METHOD(updateListTemplateRowItems:(NSString *)templateId config:(NSDi
             CPListTemplate *listTemplate = (CPListTemplate*) template;
             NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
             if (sectionIndex >= listTemplate.sections.count) {
-                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
+//                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
                 return;
             }
             CPListSection *section = listTemplate.sections[sectionIndex];
             NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
             if (index >= section.items.count) {
-                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
+//                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
                 return;
             }
             CPListImageRowItem *item = (CPListImageRowItem *)section.items[index];
             if (item) {
                 if(config[@"rowItems"]) {
-                    if (@available(iOS 14.0, *)) {
-                        UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
-                        NSArray *_rowItems = [RCTConvert NSArray:config[@"rowItems"]];
-                        NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
-                        
-                        for (id rowItem in _rowItems) {
-                            if (rowItem[@"imgUrl"]) {
-                                NSString *imgUrl = rowItem[@"imgUrl"];
-                                UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
-                                if (!uiImage) {
-                                    uiImage = placeholder;
-                                }
-                                if ([rowItem[@"isArtist"] boolValue]) {
-                                    uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
-                                }
-                                if (uiImage) {
-                                    [loadedRowItemsImages addObject:uiImage];
-                                }
+                    UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
+                    NSArray *_rowItems = [RCTConvert NSArray:config[@"rowItems"]];
+                    NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
+                    
+                    for (id rowItem in _rowItems) {
+                        if (rowItem[@"imgUrl"]) {
+                            NSString *imgUrl = rowItem[@"imgUrl"];
+                            UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
+                            if (!uiImage) {
+                                uiImage = placeholder;
+                            }
+                            if ([rowItem[@"isArtist"] boolValue]) {
+                                uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                            }
+                            if (uiImage) {
+                                [loadedRowItemsImages addObject:uiImage];
                             }
                         }
-                        
-                        while ([loadedRowItemsImages count] < CPMaximumNumberOfGridImages) {
-                            [loadedRowItemsImages addObject:placeholder];
-                        }
-                        
-                        [item updateImages:loadedRowItemsImages];
                     }
+                    
+                    while ([loadedRowItemsImages count] < 9) {
+                        [loadedRowItemsImages addObject:placeholder];
+                    }
+                    
+                    [item updateImages:loadedRowItemsImages];
                 }
             }
         } else {
@@ -824,40 +858,39 @@ RCT_EXPORT_METHOD(getMaximumListSectionCount:(NSString *)templateId
     }
 }
 
-RCT_EXPORT_METHOD(getMaximumRowItemsCount:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
-    if (@available(iOS 14, *)) {
-        resolve(@(CPMaximumNumberOfGridImages));
-    }
-}
-
 RCT_EXPORT_METHOD(updateMapTemplateConfig:(NSString *)templateId config:(NSDictionary*)config) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
-    } else {
-        NSLog(@"Failed to find template %@", template);
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [self applyConfigForMapTemplate:mapTemplate templateId:templateId config:config];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
 RCT_EXPORT_METHOD(showPanningInterface:(NSString *)templateId animated:(BOOL)animated) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate showPanningInterfaceAnimated:animated];
-    } else {
-        NSLog(@"Failed to find template %@", template);
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate showPanningInterfaceAnimated:animated];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
 RCT_EXPORT_METHOD(dismissPanningInterface:(NSString *)templateId animated:(BOOL)animated) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate dismissPanningInterfaceAnimated:animated];
-    } else {
-        NSLog(@"Failed to find template %@", template);
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate dismissPanningInterfaceAnimated:animated];
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
@@ -872,72 +905,86 @@ RCT_EXPORT_METHOD(enableNowPlaying:(BOOL)enable) {
 }
 
 RCT_EXPORT_METHOD(hideTripPreviews:(NSString*)templateId) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate hideTripPreviews];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate hideTripPreviews];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(showTripPreviews:(NSString*)templateId tripIds:(NSArray*)tripIds tripConfiguration:(NSDictionary*)tripConfiguration) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    NSMutableArray *trips = [[NSMutableArray alloc] init];
-
-    for (NSString *tripId in tripIds) {
-        CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
-        if (trip) {
-            [trips addObject:trip];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        NSMutableArray *trips = [[NSMutableArray alloc] init];
+        
+        for (NSString *tripId in tripIds) {
+            CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
+            if (trip) {
+                [trips addObject:trip];
+            }
         }
-    }
-
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate showTripPreviews:trips textConfiguration:[self parseTripPreviewTextConfiguration:tripConfiguration]];
+        
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate showTripPreviews:trips textConfiguration:[self parseTripPreviewTextConfiguration:tripConfiguration]];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(showRouteChoicesPreviewForTrip:(NSString*)templateId tripId:(NSString*)tripId tripConfiguration:(NSDictionary*)tripConfiguration) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
-
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate showRouteChoicesPreviewForTrip:trip textConfiguration:[self parseTripPreviewTextConfiguration:tripConfiguration]];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        CPTrip *trip = [[RNCPStore sharedManager] findTripById:tripId];
+        
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate showRouteChoicesPreviewForTrip:trip textConfiguration:[self parseTripPreviewTextConfiguration:tripConfiguration]];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(presentNavigationAlert:(NSString*)templateId json:(NSDictionary*)json animated:(BOOL)animated) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate presentNavigationAlert:[self parseNavigationAlert:json templateId:templateId] animated:animated];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate presentNavigationAlert:[self parseNavigationAlert:json templateId:templateId] animated:animated];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(dismissNavigationAlert:(NSString*)templateId animated:(BOOL)animated) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        [mapTemplate dismissNavigationAlertAnimated:YES completion:^(BOOL completion) {
-            [self sendTemplateEventWithName:template name:@"didDismissNavigationAlert"];
-        }];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            [mapTemplate dismissNavigationAlertAnimated:YES completion:^(BOOL completion) {
+                [self sendTemplateEventWithName:template name:@"didDismissNavigationAlert"];
+            }];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(activateVoiceControlState:(NSString*)templateId identifier:(NSString*)identifier) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPVoiceControlTemplate *voiceTemplate = (CPVoiceControlTemplate*) template;
-        [voiceTemplate activateVoiceControlStateWithIdentifier:identifier];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPVoiceControlTemplate *voiceTemplate = (CPVoiceControlTemplate*) template;
+            [voiceTemplate activateVoiceControlStateWithIdentifier:identifier];
+        }
     }
 }
 
 RCT_EXPORT_METHOD(reactToUpdatedSearchText:(NSArray *)items) {
-    NSArray *sectionsItems = [self parseListItems:items startIndex:0 templateId:nil];
-
-    if (self.searchResultBlock) {
-        self.searchResultBlock(sectionsItems);
-        self.searchResultBlock = nil;
+    if (@available(iOS 12.0, *)) {
+        NSArray *sectionsItems = [self parseListItems:items startIndex:0 templateId:nil];
+        
+        if (self.searchResultBlock) {
+            self.searchResultBlock(sectionsItems);
+            self.searchResultBlock = nil;
+        }
     }
 }
 
@@ -949,24 +996,26 @@ RCT_EXPORT_METHOD(reactToSelectedResult:(BOOL)status) {
 }
 
 RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:(NSArray*) mapButtonConfig) {
-    CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
-    if (template) {
-        CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
-        NSArray *mapButtons = [RCTConvert NSArray:mapButtonConfig];
-        NSMutableArray *result = [NSMutableArray array];
-        for (NSDictionary *mapButton in mapButtons) {
-            NSString *_id = [mapButton objectForKey:@"id"];
-            [result addObject:[RCTConvert CPMapButton:mapButton withHandler:^(CPMapButton * _Nonnull mapButton) {
-                [self sendTemplateEventWithName:mapTemplate name:@"mapButtonPressed" json:@{ @"id": _id }];
-            }]];
+    if (@available(iOS 12.0, *)) {
+        CPTemplate *template = [[RNCPStore sharedManager] findTemplateById:templateId];
+        if (template) {
+            CPMapTemplate *mapTemplate = (CPMapTemplate*) template;
+            NSArray *mapButtons = [RCTConvert NSArray:mapButtonConfig];
+            NSMutableArray *result = [NSMutableArray array];
+            for (NSDictionary *mapButton in mapButtons) {
+                NSString *_id = [mapButton objectForKey:@"id"];
+                [result addObject:[RCTConvert CPMapButton:mapButton withHandler:^(CPMapButton * _Nonnull mapButton) {
+                    [self sendTemplateEventWithName:mapTemplate name:@"mapButtonPressed" json:@{ @"id": _id }];
+                }]];
+            }
+            [mapTemplate setMapButtons:result];
         }
-        [mapTemplate setMapButtons:result];
     }
 }
 
 # pragma parsers
 
-- (void) applyConfigForMapTemplate:(CPMapTemplate*)mapTemplate templateId:(NSString*)templateId config:(NSDictionary*)config {
+- (void) applyConfigForMapTemplate:(CPMapTemplate*)mapTemplate templateId:(NSString*)templateId config:(NSDictionary*)config API_AVAILABLE(ios(12.0)) {
     RNCPStore *store = [RNCPStore sharedManager];
 
     if ([config objectForKey:@"guidanceBackgroundColor"]) {
@@ -1020,7 +1069,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }
 }
 
-- (NSArray<__kindof CPTemplate*>*) parseTemplatesFrom:(NSDictionary*)config {
+- (NSArray<__kindof CPTemplate*>*) parseTemplatesFrom:(NSDictionary*)config API_AVAILABLE(ios(12.0)) {
     RNCPStore *store = [RNCPStore sharedManager];
     NSMutableArray<__kindof CPTemplate*> *templates = [NSMutableArray new];
     NSArray<NSDictionary*> *tpls = [RCTConvert NSDictionaryArray:config[@"templates"]];
@@ -1032,7 +1081,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return templates;
 }
 
-- (NSArray<CPButton*>*) parseButtons:(NSArray*)buttons templateId:(NSString *)templateId  API_AVAILABLE(ios(14.0)){
+- (NSArray<CPButton*>*) parseButtons:(NSArray*)buttons templateId:(NSString *)templateId  API_AVAILABLE(ios(14.0)) {
     NSMutableArray *result = [NSMutableArray array];
     for (NSDictionary *button in buttons) {
         CPButton *_button;
@@ -1065,7 +1114,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return result;
 }
 
-- (NSArray<CPBarButton*>*) parseBarButtons:(NSArray*)barButtons templateId:(NSString *)templateId {
+- (NSArray<CPBarButton*>*) parseBarButtons:(NSArray*)barButtons templateId:(NSString *)templateId API_AVAILABLE(ios(12.0)) {
     NSMutableArray *result = [NSMutableArray array];
     for (NSDictionary *barButton in barButtons) {
         CPBarButtonType _type;
@@ -1096,7 +1145,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return result;
 }
 
-- (NSArray<CPListSection*>*)parseSections:(NSArray*)sections templateId:(NSString *)templateId {
+- (NSArray<CPListSection*>*)parseSections:(NSArray*)sections templateId:(NSString *)templateId API_AVAILABLE(ios(12.0)) {
     NSMutableArray *result = [NSMutableArray array];
     int index = 0;
     for (NSDictionary *section in sections) {
@@ -1114,7 +1163,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 - (void)parseSections:(NSArray*)sections
                 templateId:(NSString *)templateId
-               completion:(void (^)(NSArray<CPListSection*> *parsedSections))completion {
+               completion:(void (^)(NSArray<CPListSection*> *parsedSections))completion API_AVAILABLE(ios(12.0)) {
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSArray<CPListSection*> *parsedSections = [self parseSections:sections templateId:templateId];
@@ -1128,7 +1177,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 }
 
 
-- (NSArray<CPListItem*>*)parseListItems:(NSArray*)items startIndex:(int)startIndex templateId:(NSString *)templateId {
+- (NSArray<CPListItem*>*)parseListItems:(NSArray*)items startIndex:(int)startIndex templateId:(NSString *)templateId API_AVAILABLE(ios(12.0)) {
     NSMutableArray *_items = [NSMutableArray array];
     int index = startIndex;
     UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
@@ -1161,7 +1210,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     }
                 }
                 
-                while ([loadedRowItemsImages count] < CPMaximumNumberOfGridImages) {
+                while ([loadedRowItemsImages count] < 9) {
                     [loadedRowItemsImages addObject:placeholder];
                 }
                 
@@ -1266,7 +1315,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return _actions;
 }
 
-- (NSArray<CPGridButton*>*)parseGridButtons:(NSArray*)buttons templateId:(NSString*)templateId {
+- (NSArray<CPGridButton*>*)parseGridButtons:(NSArray*)buttons templateId:(NSString*)templateId API_AVAILABLE(ios(12.0)) {
     NSMutableArray *result = [NSMutableArray array];
     int index = 0;
     for (NSDictionary *button in buttons) {
@@ -1286,7 +1335,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return result;
 }
 
-- (CPTravelEstimates*)parseTravelEstimates: (NSDictionary*)json {
+- (CPTravelEstimates*)parseTravelEstimates: (NSDictionary*)json API_AVAILABLE(ios(12.0)) {
     NSString *units = [RCTConvert NSString:json[@"distanceUnits"]];
     double value = [RCTConvert double:json[@"distanceRemaining"]];
 
@@ -1310,7 +1359,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return [[CPTravelEstimates alloc] initWithDistanceRemaining:distance timeRemaining:time];
 }
 
-- (CPManeuver*)parseManeuver:(NSDictionary*)json {
+- (CPManeuver*)parseManeuver:(NSDictionary*)json API_AVAILABLE(ios(12.0)) {
     CPManeuver* maneuver = [[CPManeuver alloc] init];
 
     if ([json objectForKey:@"junctionImage"]) {
@@ -1355,11 +1404,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return maneuver;
 }
 
-- (CPTripPreviewTextConfiguration*)parseTripPreviewTextConfiguration:(NSDictionary*)json {
+- (CPTripPreviewTextConfiguration*)parseTripPreviewTextConfiguration:(NSDictionary*)json API_AVAILABLE(ios(12.0)) {
     return [[CPTripPreviewTextConfiguration alloc] initWithStartButtonTitle:[RCTConvert NSString:json[@"startButtonTitle"]] additionalRoutesButtonTitle:[RCTConvert NSString:json[@"additionalRoutesButtonTitle"]] overviewButtonTitle:[RCTConvert NSString:json[@"overviewButtonTitle"]]];
 }
 
-- (CPTrip*)parseTrip:(NSDictionary*)config {
+- (CPTrip*)parseTrip:(NSDictionary*)config API_AVAILABLE(ios(12.0)) {
     if ([config objectForKey:@"config"]) {
         config = [config objectForKey:@"config"];
     }
@@ -1383,7 +1432,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return [[CPTrip alloc] initWithOrigin:origin destination:destination routeChoices:routeChoices];
 }
 
-- (CPNavigationAlert*)parseNavigationAlert:(NSDictionary*)json templateId:(NSString*)templateId {
+- (CPNavigationAlert*)parseNavigationAlert:(NSDictionary*)json templateId:(NSString*)templateId API_AVAILABLE(ios(12.0)) {
     CPImageSet *imageSet;
     if ([json objectForKey:@"lightImage"] && [json objectForKey:@"darkImage"]) {
         imageSet = [[CPImageSet alloc] initWithLightContentImage:[RCTConvert UIImage:json[@"lightImage"]] darkContentImage:[RCTConvert UIImage:json[@"darkImage"]]];
@@ -1393,7 +1442,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return [[CPNavigationAlert alloc] initWithTitleVariants:[RCTConvert NSStringArray:json[@"titleVariants"]] subtitleVariants:[RCTConvert NSStringArray:json[@"subtitleVariants"]] imageSet:imageSet primaryAction:[self parseAlertAction:json[@"primaryAction"] body:@{ @"templateId": templateId, @"primary": @(YES) }] secondaryAction:secondaryAction duration:[RCTConvert double:json[@"duration"]]];
 }
 
-- (CPAlertAction*)parseAlertAction:(NSDictionary*)json body:(NSDictionary*)body {
+- (CPAlertAction*)parseAlertAction:(NSDictionary*)json body:(NSDictionary*)body API_AVAILABLE(ios(12.0)) {
     return [[CPAlertAction alloc] initWithTitle:[RCTConvert NSString:json[@"title"]] style:(CPAlertActionStyle) [RCTConvert NSUInteger:json[@"style"]] handler:^(CPAlertAction * _Nonnull action) {
         if (self->hasListeners) {
             [self sendEventWithName:@"alertActionPressed" body:body];
@@ -1401,7 +1450,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }];
 }
 
-- (NSArray<CPVoiceControlState*>*)parseVoiceControlStates:(NSArray<NSDictionary*>*)items {
+- (NSArray<CPVoiceControlState*>*)parseVoiceControlStates:(NSArray<NSDictionary*>*)items API_AVAILABLE(ios(12.0)) {
     NSMutableArray<CPVoiceControlState*>* res = [NSMutableArray array];
     for (NSDictionary *item in items) {
         [res addObject:[self parseVoiceControlState:item]];
@@ -1409,11 +1458,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     return res;
 }
 
-- (CPVoiceControlState*)parseVoiceControlState:(NSDictionary*)json {
+- (CPVoiceControlState*)parseVoiceControlState:(NSDictionary*)json API_AVAILABLE(ios(12.0)) {
     return [[CPVoiceControlState alloc] initWithIdentifier:[RCTConvert NSString:json[@"identifier"]] titleVariants:[RCTConvert NSStringArray:json[@"titleVariants"]] image:[RCTConvert UIImage:json[@"image"]] repeats:[RCTConvert BOOL:json[@"repeats"]]];
 }
 
-- (NSString*)panDirectionToString:(CPPanDirection)panDirection {
+- (NSString*)panDirectionToString:(CPPanDirection)panDirection API_AVAILABLE(ios(12.0)) {
     switch (panDirection) {
         case CPPanDirectionUp: return @"up";
         case CPPanDirectionRight: return @"right";
@@ -1423,7 +1472,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }
 }
 
-- (NSDictionary*)navigationAlertToJson:(CPNavigationAlert*)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext {
+- (NSDictionary*)navigationAlertToJson:(CPNavigationAlert*)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext API_AVAILABLE(ios(12.0)) {
     NSString *dismissalCtx = @"none";
     if (dismissalContext) {
         switch (dismissalContext) {
@@ -1444,18 +1493,18 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         @"reason": dismissalCtx
     };
 }
-- (NSDictionary*)navigationAlertToJson:(CPNavigationAlert*)navigationAlert {
+- (NSDictionary*)navigationAlertToJson:(CPNavigationAlert*)navigationAlert API_AVAILABLE(ios(12.0)) {
     return @{ @"todo": @(YES) };
     //    NSMutableDictionary *res = [[NSMutableDictionary alloc] init];
     //    return @{
     //                            };
 }
 
-- (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name {
+- (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:template name:name json:@{}];
 }
 
-- (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name json:(NSDictionary*)json {
+- (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name json:(NSDictionary*)json API_AVAILABLE(ios(12.0)) {
     NSMutableDictionary *body = [[NSMutableDictionary alloc] initWithDictionary:json];
     NSDictionary *userInfo = [template userInfo];
     [body setObject:[userInfo objectForKey:@"templateId"] forKey:@"templateId"];
@@ -1467,7 +1516,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 # pragma MapTemplate
 
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate selectedPreviewForTrip:(CPTrip *)trip usingRouteChoice:(CPRouteChoice *)routeChoice {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate selectedPreviewForTrip:(CPTrip *)trip usingRouteChoice:(CPRouteChoice *)routeChoice API_AVAILABLE(ios(12.0)) {
     NSDictionary *userInfo = trip.userInfo;
     NSString *tripId = [userInfo valueForKey:@"id"];
 
@@ -1476,7 +1525,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     [self sendTemplateEventWithName:mapTemplate name:@"selectedPreviewForTrip" json:@{ @"tripId": tripId, @"routeIndex": routeIndex}];
 }
 
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate startedTrip:(CPTrip *)trip usingRouteChoice:(CPRouteChoice *)routeChoice {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate startedTrip:(CPTrip *)trip usingRouteChoice:(CPRouteChoice *)routeChoice API_AVAILABLE(ios(12.0)) {
     NSDictionary *userInfo = trip.userInfo;
     NSString *tripId = [userInfo valueForKey:@"id"];
 
@@ -1486,7 +1535,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     [self sendTemplateEventWithName:mapTemplate name:@"startedTrip" json:@{ @"tripId": tripId, @"routeIndex": routeIndex}];
 }
 
-- (void)mapTemplateDidCancelNavigation:(CPMapTemplate *)mapTemplate {
+- (void)mapTemplateDidCancelNavigation:(CPMapTemplate *)mapTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didCancelNavigation"];
 }
 
@@ -1500,44 +1549,44 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 //    // @todo
 //}
 
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate willShowNavigationAlert:(CPNavigationAlert *)navigationAlert {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate willShowNavigationAlert:(CPNavigationAlert *)navigationAlert API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"willShowNavigationAlert" json:[self navigationAlertToJson:navigationAlert]];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate didShowNavigationAlert:(CPNavigationAlert *)navigationAlert {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate didShowNavigationAlert:(CPNavigationAlert *)navigationAlert API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didShowNavigationAlert" json:[self navigationAlertToJson:navigationAlert]];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate willDismissNavigationAlert:(CPNavigationAlert *)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate willDismissNavigationAlert:(CPNavigationAlert *)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"willDismissNavigationAlert" json:[self navigationAlertToJson:navigationAlert dismissalContext:dismissalContext]];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate didDismissNavigationAlert:(CPNavigationAlert *)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate didDismissNavigationAlert:(CPNavigationAlert *)navigationAlert dismissalContext:(CPNavigationAlertDismissalContext)dismissalContext API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didDismissNavigationAlert" json:[self navigationAlertToJson:navigationAlert dismissalContext:dismissalContext]];
 }
 
-- (void)mapTemplateDidShowPanningInterface:(CPMapTemplate *)mapTemplate {
+- (void)mapTemplateDidShowPanningInterface:(CPMapTemplate *)mapTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didShowPanningInterface"];
 }
-- (void)mapTemplateWillDismissPanningInterface:(CPMapTemplate *)mapTemplate {
+- (void)mapTemplateWillDismissPanningInterface:(CPMapTemplate *)mapTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"willDismissPanningInterface"];
 }
-- (void)mapTemplateDidDismissPanningInterface:(CPMapTemplate *)mapTemplate {
+- (void)mapTemplateDidDismissPanningInterface:(CPMapTemplate *)mapTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didDismissPanningInterface"];
 }
-- (void)mapTemplateDidBeginPanGesture:(CPMapTemplate *)mapTemplate {
+- (void)mapTemplateDidBeginPanGesture:(CPMapTemplate *)mapTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didBeginPanGesture"];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate panWithDirection:(CPPanDirection)direction {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate panWithDirection:(CPPanDirection)direction API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"panWithDirection" json:@{ @"direction": [self panDirectionToString:direction] }];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate panBeganWithDirection:(CPPanDirection)direction {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate panBeganWithDirection:(CPPanDirection)direction API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"panBeganWithDirection" json:@{ @"direction": [self panDirectionToString:direction] }];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate panEndedWithDirection:(CPPanDirection)direction {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate panEndedWithDirection:(CPPanDirection)direction API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"panEndedWithDirection" json:@{ @"direction": [self panDirectionToString:direction] }];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate didEndPanGestureWithVelocity:(CGPoint)velocity {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate didEndPanGestureWithVelocity:(CGPoint)velocity API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didEndPanGestureWithVelocity" json:@{ @"velocity": @{ @"x": @(velocity.x), @"y": @(velocity.y) }}];
 }
-- (void)mapTemplate:(CPMapTemplate *)mapTemplate didUpdatePanGestureWithTranslation:(CGPoint)translation velocity:(CGPoint)velocity {
+- (void)mapTemplate:(CPMapTemplate *)mapTemplate didUpdatePanGestureWithTranslation:(CGPoint)translation velocity:(CGPoint)velocity API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:mapTemplate name:@"didUpdatePanGestureWithTranslation" json:@{ @"translation": @{ @"x": @(translation.x), @"y": @(translation.y) }, @"velocity": @{ @"x": @(velocity.x), @"y": @(velocity.y) }}];
 }
 
@@ -1545,24 +1594,24 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 # pragma SearchTemplate
 
-- (void)searchTemplate:(CPSearchTemplate *)searchTemplate selectedResult:(CPListItem *)item completionHandler:(void (^)(void))completionHandler {
+- (void)searchTemplate:(CPSearchTemplate *)searchTemplate selectedResult:(CPListItem *)item completionHandler:(void (^)(void))completionHandler API_AVAILABLE(ios(12.0)) {
     NSNumber* index = [item.userInfo objectForKey:@"index"];
     [self sendTemplateEventWithName:searchTemplate name:@"selectedResult" json:@{ @"index": index }];
     self.selectedResultBlock = completionHandler;
 }
 
-- (void)searchTemplateSearchButtonPressed:(CPSearchTemplate *)searchTemplate {
+- (void)searchTemplateSearchButtonPressed:(CPSearchTemplate *)searchTemplate API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:searchTemplate name:@"searchButtonPressed"];
 }
 
-- (void)searchTemplate:(CPSearchTemplate *)searchTemplate updatedSearchText:(NSString *)searchText completionHandler:(void (^)(NSArray<CPListItem *> * _Nonnull))completionHandler {
+- (void)searchTemplate:(CPSearchTemplate *)searchTemplate updatedSearchText:(NSString *)searchText completionHandler:(void (^)(NSArray<CPListItem *> * _Nonnull))completionHandler API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:searchTemplate name:@"updatedSearchText" json:@{ @"searchText": searchText }];
     self.searchResultBlock = completionHandler;
 }
 
 # pragma ListTemplate
 
-- (void)listTemplate:(CPListTemplate *)listTemplate didSelectListItem:(CPListItem *)item completionHandler:(void (^)(void))completionHandler {
+- (void)listTemplate:(CPListTemplate *)listTemplate didSelectListItem:(CPListItem *)item completionHandler:(void (^)(void))completionHandler API_AVAILABLE(ios(12.0)) {
     if (listTemplate && item) {
         NSNumber* index = [item.userInfo objectForKey:@"index"];
         [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
@@ -1590,31 +1639,31 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 # pragma InterfaceController
 
-- (void)templateDidAppear:(CPTemplate *)aTemplate animated:(BOOL)animated {
+- (void)templateDidAppear:(CPTemplate *)aTemplate animated:(BOOL)animated API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:aTemplate name:@"didAppear" json:@{ @"animated": @(animated) }];
 }
 
-- (void)templateDidDisappear:(CPTemplate *)aTemplate animated:(BOOL)animated {
+- (void)templateDidDisappear:(CPTemplate *)aTemplate animated:(BOOL)animated API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:aTemplate name:@"didDisappear" json:@{ @"animated": @(animated) }];
 }
 
-- (void)templateWillAppear:(CPTemplate *)aTemplate animated:(BOOL)animated {
+- (void)templateWillAppear:(CPTemplate *)aTemplate animated:(BOOL)animated API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:aTemplate name:@"willAppear" json:@{ @"animated": @(animated) }];
 }
 
-- (void)templateWillDisappear:(CPTemplate *)aTemplate animated:(BOOL)animated {
+- (void)templateWillDisappear:(CPTemplate *)aTemplate animated:(BOOL)animated API_AVAILABLE(ios(12.0)) {
     [self sendTemplateEventWithName:aTemplate name:@"willDisappear" json:@{ @"animated": @(animated) }];
 }
 
 # pragma NowPlaying
 
-- (void)nowPlayingTemplateUpNextButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate  API_AVAILABLE(ios(14.0)){
+- (void)nowPlayingTemplateUpNextButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate API_AVAILABLE(ios(14.0)){
     if (nowPlayingTemplate) {
         [self sendTemplateEventWithName:nowPlayingTemplate name:@"upNextButtonPressed"];
     }
 }
 
-- (void)nowPlayingTemplateAlbumArtistButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate  API_AVAILABLE(ios(14.0)){
+- (void)nowPlayingTemplateAlbumArtistButtonTapped:(CPNowPlayingTemplate *)nowPlayingTemplate API_AVAILABLE(ios(14.0)){
     if (nowPlayingTemplate) {
         [self sendTemplateEventWithName:nowPlayingTemplate name:@"albumArtistButtonPressed"];
     }
