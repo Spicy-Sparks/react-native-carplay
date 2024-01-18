@@ -702,101 +702,101 @@ RCT_EXPORT_METHOD(updateListTemplateSections:(NSString *)templateId sections:(NS
 
 RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictionary*)config) {
     if (@available(iOS 14, *)) {
-        RNCPStore *store = [RNCPStore sharedManager];
-        CPTemplate *template = [store findTemplateById:templateId];
-        if (template) {
-            CPListTemplate *listTemplate = (CPListTemplate*) template;
-            NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
-            if (sectionIndex >= listTemplate.sections.count) {
-//                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
-                return;
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            RNCPStore *store = [RNCPStore sharedManager];
+            CPTemplate *template = [store findTemplateById:templateId];
+            if (template) {
+                CPListTemplate *listTemplate = (CPListTemplate*) template;
+                NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
+                if (sectionIndex >= listTemplate.sections.count) {
+                    return;
+                }
+                CPListSection *section = listTemplate.sections[sectionIndex];
+                NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
+                if (index >= section.items.count) {
+                    return;
+                }
+                CPListItem *item = (CPListItem *)section.items[index];
+                if (item) {
+                    if (config[@"imgUrl"]) {
+                        [item setImage:[[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:config[@"imgUrl"]]]]]];
+                    }
+                    if (config[@"image"]) {
+                        [item setImage:[RCTConvert UIImage:config[@"image"]]];
+                    }
+                    if (config[@"text"]) {
+                        [item setText:[RCTConvert NSString:config[@"text"]]];
+                    }
+                    if (config[@"detailText"]) {
+                        [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
+                    }
+                    BOOL isPlaying = [RCTConvert BOOL:config[@"isPlaying"]];
+                    if (isPlaying) {
+                        [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
+                        [item setPlaying:YES];
+                        NSLog(@"added");
+                    } else {
+                        [item setPlaying:NO];
+                        NSLog(@"removed");
+                    }
+                }
+            } else {
+                NSLog(@"Failed to find template %@", template);
             }
-            CPListSection *section = listTemplate.sections[sectionIndex];
-            NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
-            if (index >= section.items.count) {
-//                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
-                return;
-            }
-            CPListItem *item = (CPListItem *)section.items[index];
-            if (item) {
-                if (config[@"imgUrl"]) {
-                    [item setImage:[[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:config[@"imgUrl"]]]]]];
-                }
-                if (config[@"image"]) {
-                    [item setImage:[RCTConvert UIImage:config[@"image"]]];
-                }
-                if (config[@"text"]) {
-                    [item setText:[RCTConvert NSString:config[@"text"]]];
-                }
-                if (config[@"detailText"]) {
-                    [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
-                }
-                BOOL isPlaying = [RCTConvert BOOL:config[@"isPlaying"]];
-                if (isPlaying) {
-                    [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
-                    [item setPlaying:YES];
-                    NSLog(@"added");
-                } else {
-                    [item setPlaying:NO];
-                    NSLog(@"removed");
-                }
-            }
-        } else {
-            NSLog(@"Failed to find template %@", template);
-        }
+        });
     }
 }
 
 RCT_EXPORT_METHOD(updateListTemplateRowItems:(NSString *)templateId config:(NSDictionary*)config) {
     if (@available(iOS 14, *)) {
-        RNCPStore *store = [RNCPStore sharedManager];
-        CPTemplate *template = [store findTemplateById:templateId];
-        if (template) {
-            CPListTemplate *listTemplate = (CPListTemplate*) template;
-            NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
-            if (sectionIndex >= listTemplate.sections.count) {
-//                NSLog(@"Failed to update item at section %d, sections size is %d", index, listTemplate.sections.count);
-                return;
-            }
-            CPListSection *section = listTemplate.sections[sectionIndex];
-            NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
-            if (index >= section.items.count) {
-//                NSLog(@"Failed to update item at index %d, section size is %d", index, section.items.count);
-                return;
-            }
-            CPListImageRowItem *item = (CPListImageRowItem *)section.items[index];
-            if (item) {
-                if(config[@"rowItems"]) {
-                    UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
-                    NSArray *_rowItems = [RCTConvert NSArray:config[@"rowItems"]];
-                    NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
-                    
-                    for (id rowItem in _rowItems) {
-                        if (rowItem[@"imgUrl"]) {
-                            NSString *imgUrl = rowItem[@"imgUrl"];
-                            UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
-                            if (!uiImage) {
-                                uiImage = placeholder;
-                            }
-                            if ([rowItem[@"isArtist"] boolValue]) {
-                                uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
-                            }
-                            if (uiImage) {
-                                [loadedRowItemsImages addObject:uiImage];
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            RNCPStore *store = [RNCPStore sharedManager];
+            CPTemplate *template = [store findTemplateById:templateId];
+            if (template) {
+                CPListTemplate *listTemplate = (CPListTemplate*) template;
+                NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
+                if (sectionIndex >= listTemplate.sections.count) {
+                    return;
+                }
+                CPListSection *section = listTemplate.sections[sectionIndex];
+                NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
+                if (index >= section.items.count) {
+                    return;
+                }
+                CPListImageRowItem *item = (CPListImageRowItem *)section.items[index];
+                if (item) {
+                    if(config[@"rowItems"]) {
+                        UIImage *placeholder = [UIImage imageNamed: @"Placeholder"];
+                        NSArray *_rowItems = [RCTConvert NSArray:config[@"rowItems"]];
+                        NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
+                        
+                        for (id rowItem in _rowItems) {
+                            if (rowItem[@"imgUrl"]) {
+                                NSString *imgUrl = rowItem[@"imgUrl"];
+                                UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
+                                if (!uiImage) {
+                                    uiImage = placeholder;
+                                }
+                                if ([rowItem[@"isArtist"] boolValue]) {
+                                    uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                                }
+                                if (uiImage) {
+                                    [loadedRowItemsImages addObject:uiImage];
+                                }
                             }
                         }
+                        
+                        while ([loadedRowItemsImages count] < 9) {
+                            [loadedRowItemsImages addObject:placeholder];
+                        }
+                        
+                        [item updateImages:loadedRowItemsImages];
                     }
-                    
-                    while ([loadedRowItemsImages count] < 9) {
-                        [loadedRowItemsImages addObject:placeholder];
-                    }
-                    
-                    [item updateImages:loadedRowItemsImages];
                 }
+            } else {
+                NSLog(@"Failed to find template %@", template);
             }
-        } else {
-            NSLog(@"Failed to find template %@", template);
-        }
+        });
     }
 }
 
