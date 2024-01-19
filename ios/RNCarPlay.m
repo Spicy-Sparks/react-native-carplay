@@ -687,16 +687,18 @@ RCT_EXPORT_METHOD(updateTabBarTemplates:(NSString *)templateId templates:(NSDict
 
 RCT_EXPORT_METHOD(updateListTemplateSections:(NSString *)templateId sections:(NSArray*)sections) {
     if (@available(iOS 12.0, *)) {
-        RNCPStore *store = [RNCPStore sharedManager];
-        CPTemplate *template = [store findTemplateById:templateId];
-        if (template) {
-            CPListTemplate *listTemplate = (CPListTemplate*) template;
-            [self parseSections:sections templateId:templateId completion:^(NSArray<CPListSection*> *parsedSections) {
-                [listTemplate updateSections:parsedSections];
-            }];
-        } else {
-            NSLog(@"Failed to find template %@", template);
-        }
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            RNCPStore *store = [RNCPStore sharedManager];
+            CPTemplate *template = [store findTemplateById:templateId];
+            if (template) {
+                CPListTemplate *listTemplate = (CPListTemplate*) template;
+                [self parseSections:sections templateId:templateId completion:^(NSArray<CPListSection*> *parsedSections) {
+                    [listTemplate updateSections:parsedSections];
+                }];
+            } else {
+                NSLog(@"Failed to find template %@", template);
+            }
+        });
     }
 }
 
@@ -1167,12 +1169,9 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSArray<CPListSection*> *parsedSections = [self parseSections:sections templateId:templateId];
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (completion) {
-                completion(parsedSections);
-            }
-        });
+        if (completion) {
+            completion(parsedSections);
+        }
     });
 }
 
