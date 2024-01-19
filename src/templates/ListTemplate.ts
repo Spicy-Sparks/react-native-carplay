@@ -64,6 +64,11 @@ export interface ListTemplateConfig extends TemplateConfig {
   backButtonHidden?: boolean;
 
   /**
+   * Back button title
+   */
+  backButtonTitle: string;
+
+  /**
    * Assistant Configuration
    * @see https://developer.apple.com/documentation/carplay/cplisttemplate#3762508
    */

@@ -229,7 +229,12 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
                 [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
                 [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
                 if (![RCTConvert BOOL:config[@"backButtonHidden"]]) {
-                    CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
+                    NSString *title = [RCTConvert NSString:config[@"backButtonTitle"]];
+                    if (!title) {
+                        title = @"Back";
+                    }
+                    title = [@" " stringByAppendingString:title];
+                    CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:title handler:^(CPBarButton * _Nonnull barButton) {
                         if (self->hasListeners) {
                             [self sendEventWithName:@"backButtonPressed" body:@{@"templateId":templateId}];
                         }
