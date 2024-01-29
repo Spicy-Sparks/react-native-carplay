@@ -547,8 +547,9 @@ RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated
         if (template) {
             if (@available(iOS 14, *)) {
                 [store.interfaceController setRootTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                    NSLog(@"error %@", err);
-                    // noop
+                    if (err) {
+                        NSLog(@"error - setRootTemplate %@", err);
+                    }
                 }];
             } else {
                 [store.interfaceController setRootTemplate:template animated:animated];
@@ -566,8 +567,9 @@ RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
         if (template) {
             if (@available(iOS 14, *)) {
                 [store.interfaceController pushTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                    NSLog(@"error %@", err);
-                    // noop
+                    if (err) {
+                        NSLog(@"error - pushTemplate %@", err);
+                    }
                 }];
             } else {
                 [store.interfaceController pushTemplate:template animated:animated];
@@ -585,8 +587,9 @@ RCT_EXPORT_METHOD(popToTemplate:(NSString *)templateId animated:(BOOL)animated) 
         if (template) {
             if (@available(iOS 14, *)) {
                 [store.interfaceController popToTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                    NSLog(@"error %@", err);
-                    // noop
+                    if (err) {
+                        NSLog(@"error - popToTemplate %@", err);
+                    }
                 }];
             } else {
                 [store.interfaceController popToTemplate:template animated:animated];
@@ -602,8 +605,9 @@ RCT_EXPORT_METHOD(popToRootTemplate:(BOOL)animated) {
         RNCPStore *store = [RNCPStore sharedManager];
         if (@available(iOS 14, *)) {
             [store.interfaceController popToRootTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                NSLog(@"error %@", err);
-                // noop
+                if (err) {
+                    NSLog(@"error - popToRootTemplate %@", err);
+                }
             }];
         } else {
             [store.interfaceController popToRootTemplateAnimated:animated];
@@ -616,8 +620,9 @@ RCT_EXPORT_METHOD(popTemplate:(BOOL)animated) {
         RNCPStore *store = [RNCPStore sharedManager];
         if (@available(iOS 14, *)) {
             [store.interfaceController popTemplateAnimated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                NSLog(@"error %@", err);
-                // noop
+                if (err) {
+                    NSLog(@"error - popTemplate %@", err);
+                }
             }];
         } else {
             [store.interfaceController popTemplateAnimated:animated];
@@ -632,8 +637,9 @@ RCT_EXPORT_METHOD(presentTemplate:(NSString *)templateId animated:(BOOL)animated
         if (template) {
             if (@available(iOS 14, *)) {
                 [store.interfaceController presentTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-                    NSLog(@"error %@", err);
-                    // noop
+                    if (err) {
+                        NSLog(@"error - presentTemplate %@", err);
+                    }
                 }];
             } else {
                 [store.interfaceController presentTemplate:template animated:animated];
@@ -715,18 +721,28 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
             if (template) {
                 CPListTemplate *listTemplate = (CPListTemplate*) template;
                 NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
-                if (sectionIndex >= listTemplate.sections.count) {
+                if (sectionIndex >= 0 && sectionIndex >= listTemplate.sections.count) {
                     return;
                 }
                 CPListSection *section = listTemplate.sections[sectionIndex];
                 NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
-                if (index >= section.items.count) {
+                if (index >= 0 && index >= section.items.count) {
                     return;
                 }
                 CPListItem *item = (CPListItem *)section.items[index];
                 if (item) {
-                    if (config[@"imgUrl"]) {
-                        [item setImage:[[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:config[@"imgUrl"]]]]]];
+                    NSString *imgUrl = [RCTConvert NSString:config[@"imgUrl"]];
+                    if (imgUrl) {
+                        NSURL *url = [NSURL URLWithString:imgUrl];
+                        if (url) {
+                            NSData *imageData = [NSData dataWithContentsOfURL:url];
+                            if (imageData) {
+                                UIImage *image = [[UIImage alloc] initWithData:imageData];
+                                if (image) {
+                                    [item setImage:image];
+                                }
+                            }
+                        }
                     }
                     if (config[@"image"]) {
                         [item setImage:[RCTConvert UIImage:config[@"image"]]];
@@ -741,10 +757,8 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
                     if (isPlaying) {
                         [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
                         [item setPlaying:YES];
-                        NSLog(@"added");
                     } else {
                         [item setPlaying:NO];
-                        NSLog(@"removed");
                     }
                 }
             } else {
@@ -779,22 +793,30 @@ RCT_EXPORT_METHOD(updateListTemplateRowItems:(NSString *)templateId config:(NSDi
                         
                         for (id rowItem in _rowItems) {
                             if (rowItem[@"imgUrl"]) {
+                                UIImage *image = nil;
                                 NSString *imgUrl = rowItem[@"imgUrl"];
-                                UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
-                                if (!uiImage) {
-                                    uiImage = placeholder;
+                                NSURL *url = [NSURL URLWithString:imgUrl];
+                                if (url) {
+                                    NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                    if (imageData) {
+                                        UIImage *imageCopy = [[UIImage alloc] initWithData:imageData];
+                                        if (imageCopy) {
+                                            image = imageCopy;
+                                        }
+                                    }
                                 }
+                                if (!image && placeholder) image = placeholder;
                                 if ([rowItem[@"isArtist"] boolValue]) {
-                                    uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                                    image = [self imageWithRoundedCornersSize:100 usingImage:image];
                                 }
-                                if (uiImage) {
-                                    [loadedRowItemsImages addObject:uiImage];
+                                if (image) {
+                                    [loadedRowItemsImages addObject:image];
                                 }
                             }
                         }
                         
                         while ([loadedRowItemsImages count] < 9) {
-                            [loadedRowItemsImages addObject:placeholder];
+                            if (placeholder) [loadedRowItemsImages addObject:placeholder];
                         }
                         
                         [item updateImages:loadedRowItemsImages];
@@ -1188,7 +1210,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     for (NSDictionary *item in items) {
         NSString *_detailText = [RCTConvert NSString:item[@"detailText"]];
         NSString *_text = [RCTConvert NSString:item[@"text"]];
-        UIImage *_uiImage = [RCTConvert UIImage:[item objectForKey:@"image"]];
+        UIImage *image = nil;
         NSArray *_rowItems = [item objectForKey:@"rowItems"];
         BOOL isPlaying = [RCTConvert BOOL:item[@"isPlaying"]];
         BOOL onlyText = [RCTConvert BOOL:item[@"onlyText"]];
@@ -1200,22 +1222,32 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                 NSMutableArray *loadedRowItemsImages = [[NSMutableArray alloc] init];
                 
                 for (id rowItem in _rowItems) {
+                    UIImage *image = nil;
                     if (rowItem[@"imgUrl"]) {
                         NSString *imgUrl = rowItem[@"imgUrl"];
-                        UIImage *uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imgUrl]]];
-                        if (!uiImage) uiImage = placeholder;
-                        if ([rowItem[@"isArtist"] boolValue]) {
-                            uiImage = [self imageWithRoundedCornersSize:100 usingImage:uiImage];
+                        NSURL *url = [NSURL URLWithString:imgUrl];
+                        if (url) {
+                            NSData *imageData = [NSData dataWithContentsOfURL:url];
+                            if (imageData) {
+                                UIImage *imageCopy = [[UIImage alloc] initWithData:imageData];
+                                if (imageCopy) {
+                                    image = imageCopy;
+                                }
+                            }
                         }
-                        if (uiImage) {
+                        if (!image && placeholder) image = placeholder;
+                        if ([rowItem[@"isArtist"] boolValue]) {
+                            image = [self imageWithRoundedCornersSize:100 usingImage:image];
+                        }
+                        if (image) {
                             [loadedRowItems addObject:rowItem];
-                            [loadedRowItemsImages addObject:uiImage];
+                            [loadedRowItemsImages addObject:image];
                         }
                     }
                 }
                 
                 while ([loadedRowItemsImages count] < 9) {
-                    [loadedRowItemsImages addObject:placeholder];
+                    if (placeholder) [loadedRowItemsImages addObject:placeholder];
                 }
                 
                 CPListImageRowItem *_imageRowItem = [[CPListImageRowItem alloc] initWithText:_text images:loadedRowItemsImages];
@@ -1246,7 +1278,19 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         }
         
         if (item[@"imgUrl"]) {
-            _uiImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[RCTConvert NSString:item[@"imgUrl"]]]]];
+            NSString *imgUrl = [RCTConvert NSString:item[@"imgUrl"]];
+            if (imgUrl) {
+                NSURL *url = [NSURL URLWithString:imgUrl];
+                if (url) {
+                    NSData *imageData = [NSData dataWithContentsOfURL:url];
+                    if (imageData) {
+                        UIImage *imageCopy = [[UIImage alloc] initWithData:imageData];
+                        if (imageCopy) {
+                            image = imageCopy;
+                        }
+                    }
+                }
+            }
         }
         
         NSDictionary *listItemsImagesNamesMapping = @{
@@ -1255,16 +1299,24 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
             
         if (item[@"imageName"]) {
             NSString *imageName = [RCTConvert NSString:item[@"imageName"]];
-            _uiImage = [UIImage imageNamed:listItemsImagesNamesMapping[imageName]];
+            if (imageName) {
+                NSString *nativeImageName = listItemsImagesNamesMapping[imageName];
+                if (nativeImageName) {
+                    UIImage *imageCopy = [UIImage imageNamed:nativeImageName];
+                    if (imageCopy) {
+                        image = imageCopy;
+                    }
+                }
+            }
         }
         
-        if (!_uiImage && !onlyText) _uiImage = placeholder;
+        if (!image && !onlyText && placeholder) image = placeholder;
         
         if ([item[@"isArtist"] boolValue]) {
-            _uiImage = [self imageWithRoundedCornersSize:100 usingImage:_uiImage];
+            image = [self imageWithRoundedCornersSize:100 usingImage:image];
         }
         
-        CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:_uiImage];
+        CPListItem *_item = [[CPListItem alloc] initWithText:_text detailText:_detailText image:image];
         if (@available(iOS 14, *)) {
             if (isPlaying) {
                 [_item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
