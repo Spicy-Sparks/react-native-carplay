@@ -715,56 +715,73 @@ RCT_EXPORT_METHOD(updateListTemplateSections:(NSString *)templateId sections:(NS
 
 RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictionary*)config) {
     if (@available(iOS 14, *)) {
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            RNCPStore *store = [RNCPStore sharedManager];
-            CPTemplate *template = [store findTemplateById:templateId];
-            if (template) {
-                CPListTemplate *listTemplate = (CPListTemplate*) template;
-                NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
-                if (sectionIndex >= 0 && sectionIndex >= listTemplate.sections.count) {
-                    return;
-                }
-                CPListSection *section = listTemplate.sections[sectionIndex];
-                NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
-                if (index >= 0 && index >= section.items.count) {
-                    return;
-                }
-                CPListItem *item = (CPListItem *)section.items[index];
-                if (item) {
-                    NSString *imgUrl = [RCTConvert NSString:config[@"imgUrl"]];
-                    if (imgUrl) {
-                        NSURL *url = [NSURL URLWithString:imgUrl];
-                        if (url) {
-                            NSData *imageData = [NSData dataWithContentsOfURL:url];
-                            if (imageData) {
-                                UIImage *image = [[UIImage alloc] initWithData:imageData];
-                                if (image) {
-                                    [item setImage:image];
+        RNCPStore *store = [RNCPStore sharedManager];
+        CPTemplate *template = [store findTemplateById:templateId];
+        if (template) {
+            CPListTemplate *listTemplate = (CPListTemplate*) template;
+            NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
+            if (sectionIndex >= 0 && sectionIndex >= listTemplate.sections.count) {
+                return;
+            }
+            CPListSection *section = listTemplate.sections[sectionIndex];
+            NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
+            if (index >= 0 && index >= section.items.count) {
+                return;
+            }
+            CPListItem *item = (CPListItem *)section.items[index];
+            if (item) {
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    RNCPStore *store = [RNCPStore sharedManager];
+                    CPTemplate *template = [store findTemplateById:templateId];
+                    if (template) {
+                        CPListTemplate *listTemplate = (CPListTemplate*) template;
+                        NSInteger sectionIndex = [RCTConvert NSInteger:config[@"sectionIndex"]];
+                        if (sectionIndex >= 0 && sectionIndex >= listTemplate.sections.count) {
+                            return;
+                        }
+                        CPListSection *section = listTemplate.sections[sectionIndex];
+                        NSInteger index = [RCTConvert NSInteger:config[@"itemIndex"]];
+                        if (index >= 0 && index >= section.items.count) {
+                            return;
+                        }
+                        CPListItem *item = (CPListItem *)section.items[index];
+                        if (item) {
+                            NSString *imgUrl = [RCTConvert NSString:config[@"imgUrl"]];
+                            if (imgUrl) {
+                                NSURL *url = [NSURL URLWithString:imgUrl];
+                                if (url) {
+                                    NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                    if (imageData) {
+                                        UIImage *image = [[UIImage alloc] initWithData:imageData];
+                                        if (image) {
+                                            [item setImage:image];
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    if (config[@"image"]) {
-                        [item setImage:[RCTConvert UIImage:config[@"image"]]];
-                    }
-                    if (config[@"text"]) {
-                        [item setText:[RCTConvert NSString:config[@"text"]]];
-                    }
-                    if (config[@"detailText"]) {
-                        [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
-                    }
-                    BOOL isPlaying = [RCTConvert BOOL:config[@"isPlaying"]];
-                    if (isPlaying) {
-                        [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
-                        [item setPlaying:YES];
-                    } else {
-                        [item setPlaying:NO];
-                    }
+                });
+                if (config[@"image"]) {
+                    [item setImage:[RCTConvert UIImage:config[@"image"]]];
                 }
-            } else {
-                NSLog(@"Failed to find template %@", template);
+                if (config[@"text"]) {
+                    [item setText:[RCTConvert NSString:config[@"text"]]];
+                }
+                if (config[@"detailText"]) {
+                    [item setDetailText:[RCTConvert NSString:config[@"detailText"]]];
+                }
+                BOOL isPlaying = [RCTConvert BOOL:config[@"isPlaying"]];
+                if (isPlaying) {
+                    [item setPlayingIndicatorLocation:CPListItemPlayingIndicatorLocationTrailing];
+                    [item setPlaying:YES];
+                } else {
+                    [item setPlaying:NO];
+                }
             }
-        });
+        } else {
+            NSLog(@"Failed to find template %@", template);
+        }
     }
 }
 
