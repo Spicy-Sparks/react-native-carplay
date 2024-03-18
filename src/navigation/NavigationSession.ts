@@ -13,12 +13,17 @@ export class NavigationSession {
 
   public updateManeuvers(maneuvers: Maneuver[]) {
     this.maneuvers = maneuvers;
-
+    const windowScale = CarPlay.window?.scale ?? 1;
     CarPlay.bridge.updateManeuversNavigationSession(
       this.id,
       maneuvers.map(maneuver => {
         if (maneuver.symbolImage) {
-          maneuver.symbolImage = Image.resolveAssetSource(maneuver.symbolImage);
+          const image = Image.resolveAssetSource(maneuver.symbolImage);
+          maneuver.symbolImage = image;
+          maneuver.symbolImageSize = maneuver.symbolImageSize ?? { width: 50, height: 50 };
+          const width = Math.floor((maneuver.symbolImageSize.width * windowScale) / image.scale);
+          const height = Math.floor((maneuver.symbolImageSize.height * windowScale) / image.scale);
+          maneuver.symbolImageSize = { width, height };
         }
         if (maneuver.junctionImage) {
           maneuver.junctionImage = Image.resolveAssetSource(maneuver.junctionImage);

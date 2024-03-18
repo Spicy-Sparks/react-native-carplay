@@ -1,9 +1,10 @@
+import { ListItem } from '../interfaces/ListItem';
 import { CarPlay } from '../CarPlay';
 import { ListItemUpdate } from '../interfaces/ListItemUpdate';
 import { ListSection } from '../interfaces/ListSection';
 import { Template, TemplateConfig } from './Template';
-
-type CollectionType = '' | 'playlist' | 'artist' | 'groupedArtist' | 'editorial' | 'search' | 'user' | 'allTracks' | 'allRecent' | 'allFavorites'
+import { Action } from '../interfaces/Action';
+import { Platform } from 'react-native';
 
 export interface ListTemplateConfig extends TemplateConfig {
   /**
@@ -15,6 +16,11 @@ export interface ListTemplateConfig extends TemplateConfig {
    */
   sections: ListSection[];
   /**
+   * Sets a single ItemList to show in the template.
+   * @namespace Android
+   */
+  items?: ListItem[];
+  /**
    *  An optional array of strings, ordered from most to least preferred.
    *  The variant strings should be provided as localized, displayable content.
    *  The system will select the first variant that fits the available space.
@@ -23,6 +29,7 @@ export interface ListTemplateConfig extends TemplateConfig {
    *  that the template has no list items.
    *  If the list template is updated to contain items, the empty view will be automatically
    *  removed.
+   * @namespace iOS
    */
   emptyViewTitleVariants?: string[];
   /**
@@ -34,6 +41,7 @@ export interface ListTemplateConfig extends TemplateConfig {
    *  that the template has no list items.
    *  If the list template is updated to contain items, the empty view will be automatically
    *  removed.
+   *  @namespace iOS
    */
   emptyViewSubtitleVariants?: string[];
   /**
@@ -59,18 +67,14 @@ export interface ListTemplateConfig extends TemplateConfig {
 
   /**
    * Option to hide back button
-   * (defaults to false)
+   * @default false
    */
   backButtonHidden?: boolean;
 
   /**
-   * Back button title
-   */
-  backButtonTitle: string;
-
-  /**
    * Assistant Configuration
    * @see https://developer.apple.com/documentation/carplay/cplisttemplate#3762508
+   * @namespace iOS
    */
   assistant?: {
     enabled: boolean;
@@ -78,6 +82,23 @@ export interface ListTemplateConfig extends TemplateConfig {
     visibility: 'off' | 'always' | 'limited';
     action: 'playMedia' | 'startCall';
   };
+  /**
+   * Sets whether the template is in a loading state.
+   * If set to true, the UI will display a loading indicator where the list content would be otherwise. The caller is expected to call invalidate and send the new template content to the host once the data is ready.
+   * If set to false, the UI will display the contents of the ItemList instance(s) added via setSingleList or addSectionedList.
+   * @namespace Android
+   */
+  loading?: boolean;
+  /**
+   * Sets the Action that will be displayed in the header of the template.
+   * @namespace Android
+   */
+  headerAction?: Action<'appIcon' | 'back'>;
+  /**
+   * Sets the ActionStrip for this template or null to not display an .
+   * This template allows up to 2 Actions. Of the 2 allowed Actions, one of them can contain a title as set via setTitle. Otherwise, only Actions with icons are allowed.
+   */
+  actions?: [Action<'custom'>] | [Action<'custom'>, Action<'custom'>];
 }
 
 /**
@@ -103,10 +124,12 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   constructor(public config: ListTemplateConfig) {
     super(config);
 
-    CarPlay.emitter.addListener('didSelectListItem', e => {
+    CarPlay.emitter.addListener('didSelectListItem', (e: { templateId: string; index: number }) => {
       if (config.onItemSelect && e.templateId === this.id) {
         void Promise.resolve(config.onItemSelect(e)).then(() => {
-          CarPlay.bridge.reactToSelectedResult(true);
+          if (Platform.OS === 'ios') {
+            CarPlay.bridge.reactToSelectedResult(true);
+          }
         });
       }
     });
@@ -114,22 +137,31 @@ export class ListTemplate extends Template<ListTemplateConfig> {
     CarPlay.emitter.addListener('didSelectRowItem', e => {
       if (config.onRowItemSelect && e.templateId === this.id) {
         void Promise.resolve(config.onRowItemSelect(e)).then(() => {
-          CarPlay.bridge.reactToSelectedResult(true);
+          if (Platform.OS === 'ios') {
+            CarPlay.bridge.reactToSelectedResult(true);
+          }
         });
       }
     });
   }
 
   public updateSections = (sections: ListSection[]) => {
+    this.config.sections = sections;
     return CarPlay.bridge.updateListTemplateSections(this.id, this.parseConfig(sections));
   };
 
   public updateListTemplateItem = (config: ListItemUpdate) => {
+    const section = this.config.sections?.[config.sectionIndex];
+    if (section && section.items) {
+      section.items[config.itemIndex] = config;
+    }
     return CarPlay.bridge.updateListTemplateItem(this.id, this.parseConfig(config));
   };
 
   public updateListTemplateRowItems = (config: ListItemUpdate) => {
-    return CarPlay.bridge.updateListTemplateRowItems(this.id, this.parseConfig(config));
+    if (Platform.OS === 'ios') {
+      return CarPlay.bridge.updateListTemplateRowItems(this.id, this.parseConfig(config));
+    }
   };
 
   public getMaximumListItemCount() {
@@ -141,6 +173,8 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   }
 
   public getMaximumRowItemsCount() {
-    return CarPlay.bridge.getMaximumRowItemsCount(this.id);
+    if (Platform.OS === 'ios') {
+      return CarPlay.bridge.getMaximumRowItemsCount(this.id);
+    }
   }
 }

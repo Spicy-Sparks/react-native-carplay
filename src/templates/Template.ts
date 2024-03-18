@@ -1,4 +1,4 @@
-import { ImageSourcePropType } from 'react-native';
+import { ImageSourcePropType, Platform } from 'react-native';
 import { CarPlay } from '../CarPlay';
 import { BarButton } from '../interfaces/BarButton';
 
@@ -12,11 +12,9 @@ export interface BaseEvent {
   templateId: string;
 }
 
-interface BarButtonEvent extends BaseEvent {
+export interface BarButtonEvent extends BaseEvent {
   id: string;
 }
-
-type TabImageName = 'home' | 'clock' | 'search' | 'music'
 
 export interface TemplateConfig {
   /**
@@ -27,12 +25,14 @@ export interface TemplateConfig {
    * An array of bar buttons to display on the leading side of the navigation bar.
    *
    * The navigation bar displays up to two buttons in the leading space. When including more than two buttons in the array, the system displays only the first two buttons.
+   * @namespace iOS
    */
   leadingNavigationBarButtons?: BarButton[];
   /**
    * An array of bar buttons to display on the trailing side of the navigation bar.
    *
    * The navigation bar displays up to two buttons in the trailing space. When including more than two buttons in the array, the system displays only the first two buttons.
+   * @namespace iOS
    */
   trailingNavigationBarButtons?: BarButton[];
   /**
@@ -47,10 +47,6 @@ export interface TemplateConfig {
    * Image source for tab
    */
   tabImage?: ImageSourcePropType;
-  /**
-   * Image name for tab
-   */
-  tabImageName?: TabImageName;
   /**
    * Set tab title
    */
@@ -129,9 +125,23 @@ export class Template<P> {
     });
 
     if (this.type !== 'map') {
-      CarPlay.bridge.createTemplate(this.id, this.parseConfig({ type: this.type, ...config }));
+      const callbackFn = Platform.select({
+        android: ({ error }: { error?: string } = {}) => {
+          error && console.error(error);
+        },
+      });
+      CarPlay.bridge.createTemplate(
+        this.id,
+        this.parseConfig({ type: this.type, ...config }),
+        callbackFn,
+      );
     }
   }
+
+  updateTemplate = (config: P) => {
+    console.log('LETSGO!', config, this.type);
+    CarPlay.bridge.updateTemplate(this.id, this.parseConfig({ type: this.type, ...config }));
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public parseConfig(config: any) {
