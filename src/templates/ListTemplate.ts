@@ -53,6 +53,11 @@ export interface ListTemplateConfig extends TemplateConfig {
   onRowItemSelect?(item: { index: number }): Promise<void>;
 
   /**
+   * Fired when the template is loaded.
+   */
+  onTemplateLoaded?(): Promise<void>;
+
+  /**
    * Fired when the back button is pressed
    */
   onBackButtonPressed?(): void;
@@ -78,6 +83,16 @@ export interface ListTemplateConfig extends TemplateConfig {
     visibility: 'off' | 'always' | 'limited';
     action: 'playMedia' | 'startCall';
   };
+
+  /**
+   * Set to true if you are asynchronously updating an existing template
+   */
+  updatingTemplate: boolean;
+
+  /**
+   * Set to true if you want to receive the onTemplateLoaded callback
+   */
+  needsTemplateLoadedCallback: boolean;
 }
 
 /**
@@ -116,6 +131,12 @@ export class ListTemplate extends Template<ListTemplateConfig> {
         void Promise.resolve(config.onRowItemSelect(e)).then(() => {
           CarPlay.bridge.reactToSelectedResult(true);
         });
+      }
+    });
+
+    CarPlay.emitter.addListener('templateLoaded', e => {
+      if (config.onTemplateLoaded && e.templateId === this.id) {
+        void Promise.resolve(config.onTemplateLoaded(e))
       }
     });
   }
