@@ -136,7 +136,7 @@ export class ListTemplate extends Template<ListTemplateConfig> {
 
     CarPlay.emitter.addListener('templateLoaded', e => {
       if (config.onTemplateLoaded && e.templateId === this.id) {
-        void Promise.resolve(config.onTemplateLoaded(e))
+        void Promise.resolve(config.onTemplateLoaded())
       }
     });
   }
