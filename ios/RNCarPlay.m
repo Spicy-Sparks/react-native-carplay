@@ -112,7 +112,8 @@ RCT_EXPORT_MODULE();
         @"alertActionPressed",
         @"selectedPreviewForTrip",
         @"startedTrip",
-        @"didSelectRowItem"
+        @"didSelectRowItem",
+        @"templateLoaded"
     ];
 }
 
@@ -173,9 +174,18 @@ RCT_EXPORT_METHOD(checkForConnection) {
 
 RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)config) {
     BOOL updatingTemplate = [RCTConvert BOOL:config[@"updatingTemplate"]];
+    BOOL needsTemplateLoadedCallback = [RCTConvert BOOL:config[@"needsTemplateLoadedCallback"]];
     if (updatingTemplate) {
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             [self createTemplateMethod:templateId config:config];
+            
+            if (needsTemplateLoadedCallback) {
+                NSMutableDictionary *bodyDictionary = [NSMutableDictionary dictionary];
+                if (templateId) {
+                    bodyDictionary[@"templateId"] = templateId;
+                }
+                [self sendEventWithName:@"templateLoaded" body:bodyDictionary];
+            }
         });
     } else {
         [self createTemplateMethod:templateId config:config];
