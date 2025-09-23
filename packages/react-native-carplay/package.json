@@ -1,5 +1,5 @@
 {
-  "name": "react-native-carplay",
+  "name": "@javascriptcommon/react-native-carplay",
   "version": "2.4.1-beta.0",
   "description": "CarPlay for React Native",
   "main": "lib/index.js",

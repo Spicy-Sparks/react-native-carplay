@@ -166,9 +166,13 @@ RCT_EXPORT_MODULE();
     return resizedImage;
 }
 
-- (void)updateItemImageWithURL:(CPListItem *)item imgUrl:(NSString *)imgUrlString {
+- (void)updateItemImageWithURL:(CPListItem *)item imgUrl:(NSString *)imgUrlString placeholderImage:(UIImage *)placeholderImage {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [item setImage:placeholderImage];
+    });
+
     NSURL *imgUrl = [NSURL URLWithString:imgUrlString];
-    
+
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:imgUrl completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (data) {
             UIImage *image = [UIImage imageWithData:data];
@@ -182,9 +186,23 @@ RCT_EXPORT_MODULE();
     [task resume];
 }
 
-- (void)updateListRowItemImageWithURL:(CPListImageRowItem *)item imgUrl:(NSString *)imgUrlString index:(int)index {    
-    NSURL *imgUrl = [NSURL URLWithString:imgUrlString];
+- (void)updateListRowItemImageWithURL:(CPListImageRowItem *)item imgUrl:(NSString *)imgUrlString index:(int)index placeholderImage:(UIImage *)placeholderImage {    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSMutableArray* newImages = [item.gridImages mutableCopy];
+        
+        @try {
+            newImages[index] = placeholderImage;
+        }
+        @catch (NSException *exception) {
+            // Best effort updating the array
+            NSLog(@"Failed to update images array of CPListImageRowItem");
+        }                
+        
+        [item updateImages:newImages];                
+    });
     
+    NSURL *imgUrl = [NSURL URLWithString:imgUrlString];
+
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:imgUrl completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (data) {
             UIImage *image = [UIImage imageWithData:data];
@@ -1102,7 +1120,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
             }
             if (item[@"imgUrl"]) {
                 NSString *imgUrlString = [RCTConvert NSString:item[@"imgUrl"]];
-                [self updateItemImageWithURL:_item imgUrl:imgUrlString];
+                UIImage *placeholderImage
+                if ([item objectForKey:@"placeholderImage"] != nil) {
+                    placeholderImage = [RCTConvert UIImage:[item objectForKey:@"placeholderImage"]];
+                }
+                [self updateItemImageWithURL:_item imgUrl:imgUrlString placeholderImage:placeholderImage];
             }
             [_item setUserInfo:@{ @"index": @(listIndex) }];
             [_items addObject:_item];
@@ -1137,10 +1159,14 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     }
                     _item = [[CPListImageRowItem alloc] initWithText:_text images:_imagesArray];
                     
-                    
+                    NSArray *_placeholderImages = [item objectForKey:@"placeholderImages"];
                     int _index = 0;
                     for (NSString* imgUrl in _slicedArray) {
-                        [self updateListRowItemImageWithURL:_item imgUrl:imgUrl index:_index];
+                        UIImage *placeholderImage;
+                        if (_placeholderImages != nil) {
+                            placeholderImage = [RCTConvert UIImage:_placeholderImages[_index]];
+                        }
+                        [self updateListRowItemImageWithURL:_item imgUrl:imgUrl index:_index placeholderImage:placeholderImage];
                         _index++;
                     }
                 }

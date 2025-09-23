@@ -20,7 +20,16 @@ export interface ListItem {
   /**
    * Image from file system displayed on the leading edge of the list item cell.
    */
+  placeholderImage?: ImageSourcePropType;
+  /**
+   * Image from file system displayed on the leading edge of the list item cell.
+   */
   image?: ImageSourcePropType;
+  /**
+   * A list of images shown in the ListRowImageItem
+   * @namespace iOS
+   */
+  placeholderImages?: ImageSourcePropType[];
   /**
    * A list of images shown in the ListRowImageItem
    * @namespace iOS
