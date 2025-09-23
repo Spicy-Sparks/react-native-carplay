@@ -1,4 +1,4 @@
-import { CarPlay, GridTemplate } from 'react-native-carplay';
+import { CarPlay, GridTemplate } from '@javascriptcommon/react-native-carplay';
 import { listTemplate } from './list.template';
 import { gridTemplate } from './grid.template';
 import { searchTemplate } from './search.template';

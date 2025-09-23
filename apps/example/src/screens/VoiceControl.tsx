@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { CarPlay, VoiceControlTemplate } from 'react-native-carplay';
+import { CarPlay, VoiceControlTemplate } from '@javascriptcommon/react-native-carplay';
 
 export function VoiceControl() {
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, View } from 'react-native';
-import { CarPlay, MapTemplate } from 'react-native-carplay';
+import { CarPlay, MapTemplate } from '@javascriptcommon/react-native-carplay';
 
 function MapView() {
   return (

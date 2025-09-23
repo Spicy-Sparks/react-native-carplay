@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { CarPlay, InformationTemplate } from 'react-native-carplay';
+import { CarPlay, InformationTemplate } from '@javascriptcommon/react-native-carplay';
 
 export function Information() {
   useEffect(() => {

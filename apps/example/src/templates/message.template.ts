@@ -1,4 +1,4 @@
-import { CarPlay, MessageTemplate } from 'react-native-carplay';
+import { CarPlay, MessageTemplate } from '@javascriptcommon/react-native-carplay';
 
 export const messageTemplate = new MessageTemplate({
   message: 'Hello, world!',

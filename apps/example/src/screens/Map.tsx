@@ -6,7 +6,7 @@ import {
   Trip,
   NavigationSession,
   MapTemplateConfig,
-} from 'react-native-carplay';
+} from '@javascriptcommon/react-native-carplay';
 import { Maneuver } from 'react-native-carplay/src/interfaces/Maneuver';
 import { PauseReason } from 'react-native-carplay/src/interfaces/PauseReason';
 import { TimeRemainingColor } from 'react-native-carplay/src/interfaces/TimeRemainingColor';

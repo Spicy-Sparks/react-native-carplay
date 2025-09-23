@@ -267,7 +267,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
                 NSDictionary *assistant = [config objectForKey:@"assistant"];
                 BOOL _enabled = [assistant valueForKey:@"enabled"];
                 if (_enabled) {
-                    CPAssistantCellConfiguration *conf = [[CPAssistantCellConfiguration alloc] initWithPosition:[RCTConvert CPAssistantCellPosition:[config valueForKey:@"position"]] visibility:[RCTConvert CPAssistantCellVisibility:[config valueForKey:@"visibility"]] assistantAction:[RCTConvert CPAssistantCellActionType:[config valueForKey:@"visibility"]]];
+                    CPAssistantCellConfiguration *conf = [[CPAssistantCellConfiguration alloc] initWithPosition:[RCTConvert CPAssistantCellPosition:[assistant valueForKey:@"position"]] visibility:[RCTConvert CPAssistantCellVisibility:[assistant valueForKey:@"visibility"]] assistantAction:[RCTConvert CPAssistantCellActionType:[assistant valueForKey:@"action"]]];
                     listTemplate = [[CPListTemplate alloc] initWithTitle:title sections:sections assistantCellConfiguration:conf];
                 }
             }

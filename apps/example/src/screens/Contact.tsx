@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { CarPlay, ContactTemplate } from 'react-native-carplay';
+import { CarPlay, ContactTemplate } from '@javascriptcommon/react-native-carplay';
 
 export function Contact() {
   useEffect(() => {

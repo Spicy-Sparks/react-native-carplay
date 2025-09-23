@@ -33,7 +33,7 @@ RCT_ENUM_CONVERTER(CPAssistantCellVisibility, (@{
 RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
                                       @"playMedia": @(CPAssistantCellActionTypePlayMedia),
                                       @"startCall": @(CPAssistantCellActionTypeStartCall)
-                                      }), CPAssistantCellActionTypeStartCall, integerValue)
+                                      }), CPAssistantCellActionTypePlayMedia, integerValue)
 
 
 + (CPMapButton*)CPMapButton:(id)json withHandler:(void (^)(CPMapButton * _Nonnull mapButton))handler {

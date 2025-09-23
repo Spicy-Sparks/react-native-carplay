@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { CarPlay, ListTemplate, TabBarTemplate } from 'react-native-carplay';
+import { CarPlay, ListTemplate, TabBarTemplate } from '@javascriptcommon/react-native-carplay';
 
 export function TabBar() {
   useEffect(() => {

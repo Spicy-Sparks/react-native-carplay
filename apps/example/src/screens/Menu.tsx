@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Button } from 'react-native';
-import { CarPlay, GridTemplate } from 'react-native-carplay';
+import { CarPlay, GridTemplate } from '@javascriptcommon/react-native-carplay';
 
 const gridItemImage = require('../images/go.png');
 

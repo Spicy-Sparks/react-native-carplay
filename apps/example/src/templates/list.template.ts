@@ -1,4 +1,4 @@
-import { CarPlay, ListTemplate } from 'react-native-carplay';
+import { CarPlay, ListTemplate } from '@javascriptcommon/react-native-carplay';
 
 const sections = Array.from({ length: 26 }).map((_, i) => ({
   header: `Header ${String.fromCharCode(97 + i).toLocaleUpperCase()}`,

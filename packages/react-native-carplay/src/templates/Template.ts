@@ -3,7 +3,7 @@ import { CarPlay } from '../CarPlay';
 import { BarButton } from '../interfaces/BarButton';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource');
+const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource').default;
 
 export interface BaseEvent {
   /**

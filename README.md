@@ -45,7 +45,7 @@ Refer to the [Android Auto Documentation](/AndroidAuto.md#installing) for detail
 This is the most basic example of how to use this library. Create templates and then push/pop them to the navigation stack natively.
 
 ```jsx
-import { CarPlay, GridTemplate } from 'react-native-carplay';
+import { CarPlay, GridTemplate } from '@javascriptcommon/react-native-carplay';
 
 // Creates your template in the car app on the fly.
 const template = new GridTemplate({

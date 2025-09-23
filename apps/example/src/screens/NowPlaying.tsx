@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import {Text, View} from 'react-native';
-import {CarPlay, NowPlayingTemplate} from 'react-native-carplay';
+import {CarPlay, NowPlayingTemplate} from '@javascriptcommon/react-native-carplay';
 
 export function NowPlaying() {
   useEffect(() => {

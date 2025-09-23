@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
-import { CarPlay, ActionSheetTemplate } from 'react-native-carplay';
+import { CarPlay, ActionSheetTemplate } from '@javascriptcommon/react-native-carplay';
 
 export function ActionSheet({ navigation }) {
   useEffect(() => {

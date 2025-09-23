@@ -1,6 +1,5 @@
 {
   "name": "root",
-  "private": true,
   "scripts": {
     "deps:check": "yarn dlx npm-check-updates@latest --deep --mergeConfig",
     "deps:update": "yarn dlx npm-check-updates@latest -u --deep --mergeConfig",
