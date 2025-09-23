@@ -167,9 +167,11 @@ RCT_EXPORT_MODULE();
 }
 
 - (void)updateItemImageWithURL:(CPListItem *)item imgUrl:(NSString *)imgUrlString placeholderImage:(UIImage *)placeholderImage {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [item setImage:placeholderImage];
-    });
+    if (placeholderImage != nil) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [item setImage:placeholderImage];
+        });
+    }
 
     NSURL *imgUrl = [NSURL URLWithString:imgUrlString];
 
@@ -186,20 +188,22 @@ RCT_EXPORT_MODULE();
     [task resume];
 }
 
-- (void)updateListRowItemImageWithURL:(CPListImageRowItem *)item imgUrl:(NSString *)imgUrlString index:(int)index placeholderImage:(UIImage *)placeholderImage {    
-    dispatch_async(dispatch_get_main_queue(), ^{
-        NSMutableArray* newImages = [item.gridImages mutableCopy];
-        
-        @try {
-            newImages[index] = placeholderImage;
-        }
-        @catch (NSException *exception) {
-            // Best effort updating the array
-            NSLog(@"Failed to update images array of CPListImageRowItem");
-        }                
-        
-        [item updateImages:newImages];                
-    });
+- (void)updateListRowItemImageWithURL:(CPListImageRowItem *)item imgUrl:(NSString *)imgUrlString index:(int)index placeholderImage:(UIImage *)placeholderImage {
+    if (placeholderImage != nil) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSMutableArray* newImages = [item.gridImages mutableCopy];
+            
+            @try {
+                newImages[index] = placeholderImage;
+            }
+            @catch (NSException *exception) {
+                // Best effort updating the array
+                NSLog(@"Failed to update images array of CPListImageRowItem");
+            }
+            
+            [item updateImages:newImages];
+        });
+    }
     
     NSURL *imgUrl = [NSURL URLWithString:imgUrlString];
 
@@ -690,7 +694,11 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
         CPListItem *item = (CPListItem *)section.items[index];
         if (config[@"imgUrl"]) {
             NSString *imgUrlString = [RCTConvert NSString:config[@"imgUrl"]];
-            [self updateItemImageWithURL:item imgUrl:imgUrlString];
+            UIImage *placeholderImage;
+            if (config[@"placeholderImage"] != nil) {
+                placeholderImage = [RCTConvert UIImage:config[@"placeholderImage"]];
+            }
+            [self updateItemImageWithURL:item imgUrl:imgUrlString placeholderImage:placeholderImage];
         }
         if (config[@"image"]) {
             [item setImage:[RCTConvert UIImage:config[@"image"]]];
@@ -1120,7 +1128,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
             }
             if (item[@"imgUrl"]) {
                 NSString *imgUrlString = [RCTConvert NSString:item[@"imgUrl"]];
-                UIImage *placeholderImage
+                UIImage *placeholderImage;
                 if ([item objectForKey:@"placeholderImage"] != nil) {
                     placeholderImage = [RCTConvert UIImage:[item objectForKey:@"placeholderImage"]];
                 }
@@ -1162,9 +1170,12 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     NSArray *_placeholderImages = [item objectForKey:@"placeholderImages"];
                     int _index = 0;
                     for (NSString* imgUrl in _slicedArray) {
-                        UIImage *placeholderImage;
-                        if (_placeholderImages != nil) {
-                            placeholderImage = [RCTConvert UIImage:_placeholderImages[_index]];
+                        UIImage *placeholderImage = nil;
+                        if (_placeholderImages != nil && _index < _placeholderImages.count) {
+                            id placeholderImageObj = _placeholderImages[_index];
+                            if (placeholderImageObj != nil && placeholderImageObj != [NSNull null]) {
+                                placeholderImage = [RCTConvert UIImage:placeholderImageObj];
+                            }
                         }
                         [self updateListRowItemImageWithURL:_item imgUrl:imgUrl index:_index placeholderImage:placeholderImage];
                         _index++;

@@ -148,12 +148,20 @@ export class Template<P> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function traverse(obj: any) {
       for (const i in obj) {
-        if (obj[i] !== null && typeof obj[i] === 'object') {
-          traverse(obj[i]);
+        if (String(i).match(/[Ii]mages$/)) {
+          console.log('array parsing', i, obj[i])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          obj[i] = obj[i].map((asset: any) => resolveAssetSource(asset));
+          console.log('array parsed', i, obj[i])
         }
-        if (String(i).match(/[Ii]mage$/)) {
+        else if (String(i).match(/[Ii]mage$/)) {
+          console.log('single image parsing', i, obj[i])
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call
           obj[i] = resolveAssetSource(obj[i]);
+        }
+        else if (obj[i] !== null && typeof obj[i] === 'object') {
+          traverse(obj[i]);
         }
       }
     }
