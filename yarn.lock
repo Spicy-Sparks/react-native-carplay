@@ -1570,6 +1570,7 @@ __metadata:
     "@babel/core": ^7.20.0
     "@babel/preset-env": ^7.20.0
     "@babel/runtime": ^7.20.0
+    "@javascriptcommon/react-native-carplay": "workspace:*"
     "@react-native-community/eslint-config": ^3.2.0
     "@react-navigation/native": ^6.1.6
     "@react-navigation/stack": ^6.3.16
@@ -1584,7 +1585,6 @@ __metadata:
     prettier: 2.6.2
     react: 18.2.0
     react-native: 0.71.13
-    react-native-carplay: "workspace:*"
     react-native-gesture-handler: ^2.10.1
     react-native-safe-area-context: ^4.5.3
     react-native-screens: ^3.20.0
@@ -1723,6 +1723,37 @@ __metadata:
   checksum: 5282759d961d61350f33d9118d16bcaed914ebf8061a52f4fa474b2cb08720c9c81d165e13b82f2e5a8a212cc5af482f0c6fc1ac27b9e067e5394c9a6ed186c9
   languageName: node
   linkType: hard
+
+"@javascriptcommon/react-native-carplay@workspace:*, @javascriptcommon/react-native-carplay@workspace:packages/react-native-carplay":
+  version: 0.0.0-use.local
+  resolution: "@javascriptcommon/react-native-carplay@workspace:packages/react-native-carplay"
+  dependencies:
+    "@react-native-community/eslint-config": 3.2.0
+    "@tsconfig/react-native": 3.0.2
+    "@types/node": 17.0.25
+    "@types/react": 18.0.6
+    "@types/react-native": 0.67.5
+    cross-env: 7.0.3
+    docusaurus-plugin-typedoc: 0.19.2
+    eslint: ^8.19.0
+    jest: 29.5.0
+    microbundle: 0.14.2
+    prettier: 2.6.2
+    rimraf: 3.0.2
+    typedoc: 0.24.7
+    typedoc-github-wiki-theme: 1.1.0
+    typedoc-plugin-markdown: 3.15.3
+    typescript: 5.0.4
+  peerDependencies:
+    react: ^17.0.2 || ^18.0.0
+    react-native: ^0.60.0
+  peerDependenciesMeta:
+    react:
+      optional: true
+    react-native:
+      optional: true
+  languageName: unknown
+  linkType: soft
 
 "@jest/console@npm:^29.5.0":
   version: 29.5.0
@@ -12318,37 +12349,6 @@ __metadata:
   checksum: 9d6d111d8990dc98bc5402c1266a808b0459b5d54830bbea24c12d908b536df7883f268a7868cfaedde3dd9d4e0d574db456f84d2e6df9c4526f99bb4b5344d8
   languageName: node
   linkType: hard
-
-"react-native-carplay@workspace:*, react-native-carplay@workspace:packages/react-native-carplay":
-  version: 0.0.0-use.local
-  resolution: "react-native-carplay@workspace:packages/react-native-carplay"
-  dependencies:
-    "@react-native-community/eslint-config": 3.2.0
-    "@tsconfig/react-native": 3.0.2
-    "@types/node": 17.0.25
-    "@types/react": 18.0.6
-    "@types/react-native": 0.67.5
-    cross-env: 7.0.3
-    docusaurus-plugin-typedoc: 0.19.2
-    eslint: ^8.19.0
-    jest: 29.5.0
-    microbundle: 0.14.2
-    prettier: 2.6.2
-    rimraf: 3.0.2
-    typedoc: 0.24.7
-    typedoc-github-wiki-theme: 1.1.0
-    typedoc-plugin-markdown: 3.15.3
-    typescript: 5.0.4
-  peerDependencies:
-    react: ^17.0.2 || ^18.0.0
-    react-native: ^0.60.0
-  peerDependenciesMeta:
-    react:
-      optional: true
-    react-native:
-      optional: true
-  languageName: unknown
-  linkType: soft
 
 "react-native-codegen@npm:^0.71.5":
   version: 0.71.5
