@@ -70,6 +70,21 @@ export interface ListTemplateConfig extends TemplateConfig {
   onBackButtonPressed?(): void;
 
   /**
+   * Fired when user scrolls close to the bottom of the list.
+   * Useful for implementing infinite scroll / pagination.
+   * @param e Object with remainingItems count
+   * @namespace iOS
+   */
+  onScrollToBottom?(e: { templateId: string; remainingItems: number }): void;
+
+  /**
+   * Number of items from the bottom that triggers onScrollToBottom callback.
+   * @default 5
+   * @namespace iOS
+   */
+  scrollBottomThreshold?: number;
+
+  /**
    * Option to hide back button
    * @default false
    */
@@ -147,6 +162,15 @@ export class ListTemplate extends Template<ListTemplateConfig> {
               CarPlay.bridge.reactToSelectedResult(true);
             }
           });
+        }
+      },
+    );
+
+    CarPlay.emitter.addListener(
+      'scrollToBottom',
+      (e: { templateId: string; remainingItems: number }) => {
+        if (config.onScrollToBottom && e.templateId === this.id) {
+          config.onScrollToBottom(e);
         }
       },
     );

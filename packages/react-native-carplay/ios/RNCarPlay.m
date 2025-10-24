@@ -84,6 +84,7 @@ RCT_EXPORT_MODULE();
         // list
         @"didSelectListItem",
         @"didSelectListItemRowImage",
+        @"scrollToBottom",
         // search
         @"updatedSearchText",
         @"searchButtonPressed",
@@ -457,7 +458,14 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         carPlayTemplate.tabTitle = [RCTConvert NSString:config[@"tabTitle"]];
     }
 
-    [carPlayTemplate setUserInfo:@{ @"templateId": templateId }];
+    // Set userInfo with templateId and optional scrollBottomThreshold for list templates
+    NSMutableDictionary *userInfo = [@{ @"templateId": templateId } mutableCopy];
+    if ([type isEqualToString:@"list"] && config[@"scrollBottomThreshold"]) {
+        userInfo[@"scrollBottomThreshold"] = [RCTConvert NSNumber:config[@"scrollBottomThreshold"]];
+    } else if ([type isEqualToString:@"list"]) {
+        userInfo[@"scrollBottomThreshold"] = @(5); // default threshold
+    }
+    [carPlayTemplate setUserInfo:userInfo];
     [store setTemplate:templateId template:carPlayTemplate];
 }
 
@@ -1522,6 +1530,35 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     NSNumber* index = [item.userInfo objectForKey:@"index"];
     [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
     self.selectedResultBlock = completionHandler;
+    
+    // Check if we should trigger scroll to bottom callback for infinite scroll
+    NSDictionary *templateUserInfo = [listTemplate userInfo];
+    NSNumber *scrollBottomThreshold = [templateUserInfo objectForKey:@"scrollBottomThreshold"];
+    
+    if (scrollBottomThreshold) {
+        // Calculate total number of items across all sections
+        NSInteger totalItems = 0;
+        for (CPListSection *section in listTemplate.sections) {
+            totalItems += section.items.count;
+        }
+        
+        // Get the current index
+        NSInteger currentIndex = [index integerValue];
+        
+        // Calculate remaining items
+        NSInteger remainingItems = totalItems - currentIndex - 1;
+        
+        // If we're within the threshold from the end, fire the event
+        if (remainingItems <= [scrollBottomThreshold integerValue]) {
+            NSString *templateId = [templateUserInfo objectForKey:@"templateId"];
+            if (self->hasListeners && templateId) {
+                [self sendEventWithName:@"scrollToBottom" body:@{
+                    @"templateId": templateId,
+                    @"remainingItems": @(remainingItems)
+                }];
+            }
+        }
+    }
 }
 
 # pragma TabBarTemplate
