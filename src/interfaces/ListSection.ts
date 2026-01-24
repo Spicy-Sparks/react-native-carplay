@@ -17,5 +17,5 @@ export interface ListSection {
   /**
    * The list of items for the section.
    */
-  items?: ListItem[];
+  items: ListItem[];
 }

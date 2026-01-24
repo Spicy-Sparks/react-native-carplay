@@ -1,6 +1,9 @@
-import { Image, ImageSourcePropType, Platform } from 'react-native';
+import { ImageSourcePropType, Platform } from 'react-native';
 import { CarPlay } from '../CarPlay';
 import { BarButton } from '../interfaces/BarButton';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource').default;
 
 export interface BaseEvent {
   /**
@@ -136,7 +139,6 @@ export class Template<P> {
   }
 
   updateTemplate = (config: P) => {
-    console.log('LETSGO!', config, this.type);
     CarPlay.bridge.updateTemplate(this.id, this.parseConfig({ type: this.type, ...config }));
   };
 
@@ -145,11 +147,17 @@ export class Template<P> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function traverse(obj: any) {
       for (const i in obj) {
-        if (obj[i] !== null && typeof obj[i] === 'object') {
-          traverse(obj[i]);
+        if (String(i).match(/[Ii]mages$/)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          obj[i] = obj[i].map((asset: any) => resolveAssetSource(asset));
         }
-        if (String(i).match(/[Ii]mage$/)) {
-          obj[i] = Image.resolveAssetSource(obj[i]);
+        else if (String(i).match(/[Ii]mage$/)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          obj[i] = resolveAssetSource(obj[i]);
+        }
+        else if (obj[i] !== null && typeof obj[i] === 'object') {
+          traverse(obj[i]);
         }
       }
     }

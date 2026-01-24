@@ -1,10 +1,17 @@
+import { ImageSourcePropType } from 'react-native';
 import { Template, TemplateConfig } from './Template';
 
 export type NowPlayingButton = {
   id: string;
-  imageName: string;
-  selected: boolean;
-};
+} & (
+  | {
+      type: 'shuffle' | 'add-to-library' | 'more' | 'playback' | 'repeat';
+    }
+  | {
+      type: 'image';
+      image: ImageSourcePropType;
+    }
+);
 
 export interface NowPlayingTemplateConfig extends TemplateConfig {
   albumArtistButtonEnabled?: boolean;

@@ -2,16 +2,14 @@
 #import <CarPlay/CarPlay.h>
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
+#import <React/RCTImageLoader.h>
 #import "RCTConvert+RNCarPlay.h"
 #import "RNCPStore.h"
 
-API_AVAILABLE(ios(12.0))
-typedef void (^SearchResultUpdateBlock)(NSArray<CPListItem *> *_Nonnull);
-typedef void (^SelectedResultBlock)(void);
+typedef void(^SearchResultUpdateBlock)(NSArray<CPListItem *> * _Nonnull);
+typedef void(^SelectedResultBlock)(void);
 
-API_AVAILABLE(ios(12.0))
-@interface RNCarPlay : RCTEventEmitter <RCTBridgeModule, CPInterfaceControllerDelegate, CPSearchTemplateDelegate, CPListTemplateDelegate, CPMapTemplateDelegate, CPTabBarTemplateDelegate, CPPointOfInterestTemplateDelegate, CPNowPlayingTemplateObserver>
-{
+@interface RNCarPlay : RCTEventEmitter<RCTBridgeModule, CPInterfaceControllerDelegate, CPSearchTemplateDelegate, CPListTemplateDelegate, CPMapTemplateDelegate,  CPTabBarTemplateDelegate, CPPointOfInterestTemplateDelegate, CPNowPlayingTemplateObserver> {
     CPInterfaceController *interfaceController;
     CPWindow *window;
     SearchResultUpdateBlock searchResultBlock;
@@ -19,14 +17,14 @@ API_AVAILABLE(ios(12.0))
     BOOL isNowPlayingActive;
 }
 
-@property(nonatomic, retain) CPInterfaceController * _Nonnull interfaceController;
-@property(nonatomic, retain) CPWindow * _Nonnull window;
-@property(nonatomic, copy) SearchResultUpdateBlock _Nullable searchResultBlock;
-@property(nonatomic, copy) SelectedResultBlock _Nullable selectedResultBlock;
-@property(nonatomic) BOOL isNowPlayingActive;
-@property(nullable, nonatomic, copy) void (^listImageRowHandler)(CPListImageRowItem * _Nonnull item, NSInteger index, dispatch_block_t _Nonnull completionBlock) API_AVAILABLE(ios(14.0));
+@property (nonatomic, retain) CPInterfaceController *interfaceController;
+@property (nonatomic, retain) CPWindow *window;
+@property (nonatomic, copy) SearchResultUpdateBlock searchResultBlock;
+@property (nonatomic, copy) SelectedResultBlock selectedResultBlock;
+@property (nonatomic) BOOL isNowPlayingActive;
 
-+ (void)connectWithInterfaceController:(CPInterfaceController *_Nonnull)interfaceController window:(CPWindow *_Nonnull)window;
-+ (void)disconnect;
++ (void) connectWithInterfaceController:(CPInterfaceController*)interfaceController window:(CPWindow*)window;
++ (void) disconnect;
+- (NSArray<CPListSection*>*) parseSections:(NSArray*)sections templateId:(NSString *)templateId;
 
 @end

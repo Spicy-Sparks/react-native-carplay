@@ -13,9 +13,9 @@ Pod::Spec.new do |s|
   s.authors      = package['author']
   s.ios.deployment_target = '12.0'
 
-  s.source       = { :git => "https://github.com/Spicy-Sparks/react-native-carplay.git" }
+  s.source       = { :git => "https://github.com/birkir/react-native-carplay.git" }
 
   s.source_files  = "ios/*.{h,m}"
 
-  s.dependency 'React-Core'
+  s.dependency 'React'
 end

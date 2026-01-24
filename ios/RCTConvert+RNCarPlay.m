@@ -33,7 +33,8 @@ RCT_ENUM_CONVERTER(CPAssistantCellVisibility, (@{
 RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
                                       @"playMedia": @(CPAssistantCellActionTypePlayMedia),
                                       @"startCall": @(CPAssistantCellActionTypeStartCall)
-                                      }), CPAssistantCellActionTypeStartCall, integerValue)
+                                      }), CPAssistantCellActionTypePlayMedia, integerValue)
+
 
 + (CPMapButton*)CPMapButton:(id)json withHandler:(void (^)(CPMapButton * _Nonnull mapButton))handler {
     CPMapButton *mapButton = [[CPMapButton alloc] initWithHandler:handler];
@@ -43,7 +44,7 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
     }
 
     if ([json objectForKey:@"focusedImage"]) {
-        [mapButton setImage:[RCTConvert UIImage:json[@"focusedImage"]]];
+        [mapButton setFocusedImage:[RCTConvert UIImage:json[@"focusedImage"]]];
     }
 
     if ([json objectForKey:@"disabled"]) {
@@ -70,7 +71,7 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
     return [[CPRouteChoice alloc] initWithSummaryVariants:[RCTConvert NSStringArray:json[@"additionalInformationVariants"]] additionalInformationVariants:[RCTConvert NSStringArray:json[@"selectionSummaryVariants"]] selectionSummaryVariants:[RCTConvert NSStringArray:json[@"summaryVariants"]]];
 }
 
-+ (CPPointOfInterest*)CPPointOfInterest:(id)json  API_AVAILABLE(ios(14.0)){
++ (CPPointOfInterest*)CPPointOfInterest:(id)json {
     MKMapItem *location = [RCTConvert MKMapItem:json[@"location"]];
     NSString *title = [RCTConvert NSString:json[@"title"]];
     NSString *subtitle = [RCTConvert NSString:json[@"subtitle"]];

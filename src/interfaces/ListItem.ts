@@ -20,24 +20,30 @@ export interface ListItem {
   /**
    * Image from file system displayed on the leading edge of the list item cell.
    */
+  placeholderImage?: ImageSourcePropType;
+  /**
+   * Image from file system displayed on the leading edge of the list item cell.
+   */
   image?: ImageSourcePropType;
   /**
-   * The image name displayed on the leading edge of the list item cell.
+   * A list of images shown in the ListRowImageItem
+   * @namespace iOS
    */
-  imageName?: string;
+  placeholderImages?: ImageSourcePropType[];
+  /**
+   * A list of images shown in the ListRowImageItem
+   * @namespace iOS
+   */
+  images?: ImageSourcePropType[];
   /**
    * Url for image displayed on the leading edge of the list item cell.
    */
-  imgUrl?: string;
+  imgUrl?: null;
   /**
-   * Is Artist flag.
-   */
-  isArtist?: boolean
-  /**
-   * The sub items arranged in a row.
+   * Url for image displayed on the leading edge of the list item cell.
    * @namespace iOS
    */
-  rowItems?: ListItem[];
+  imgUrls?: string[];
   /**
    * A Boolean value indicating whether the list item cell shows a disclosure indicator on the trailing edge of the list item cell.
    * @namespace iOS
