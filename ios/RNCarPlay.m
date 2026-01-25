@@ -527,8 +527,21 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
 
         carPlayTemplate = nowPlayingTemplate;
     } else if ([type isEqualToString:@"tabbar"]) {
-        CPTabBarTemplate *tabBarTemplate = [[CPTabBarTemplate alloc] initWithTemplates:[self parseTemplatesFrom:config]];
+        NSArray<CPTemplate*> *templates = [self parseTemplatesFrom:config];
+
+        // Set tabTitle BEFORE creating TabBarTemplate
+        NSArray<NSDictionary*> *tpls = [RCTConvert NSDictionaryArray:config[@"templates"]];
+        for (NSUInteger i = 0; i < templates.count && i < tpls.count; i++) {
+            NSDictionary *tplConfig = tpls[i];
+            CPTemplate *tpl = templates[i];
+            if (tplConfig[@"tabTitle"]) {
+                tpl.tabTitle = [RCTConvert NSString:tplConfig[@"tabTitle"]];
+            }
+        }
+
+        CPTabBarTemplate *tabBarTemplate = [[CPTabBarTemplate alloc] initWithTemplates:templates];
         tabBarTemplate.delegate = self;
+
         carPlayTemplate = tabBarTemplate;
     } else if ([type isEqualToString:@"contact"]) {
         NSString *nm = [RCTConvert NSString:config[@"name"]];
@@ -1372,7 +1385,10 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     NSArray<NSDictionary*> *tpls = [RCTConvert NSDictionaryArray:config[@"templates"]];
     for (NSDictionary *tpl in tpls) {
         CPTemplate *templ = [store findTemplateById:tpl[@"id"]];
-        // @todo UITabSystemItem
+        // If template doesn't have tabTitle set, try to set it from config
+        if (tpl[@"tabTitle"] && (!templ.tabTitle || [templ.tabTitle length] == 0)) {
+            templ.tabTitle = [RCTConvert NSString:tpl[@"tabTitle"]];
+        }
         [templates addObject:templ];
     }
     return templates;

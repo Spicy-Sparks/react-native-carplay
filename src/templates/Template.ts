@@ -161,7 +161,20 @@ export class Template<P> {
         }
       }
     }
-    const result = JSON.parse(JSON.stringify(config));
+    // Handle templates array specially - extract id and tabTitle from Template instances
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const configToSerialize = { ...config };
+    if (Array.isArray(config.templates)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      configToSerialize.templates = config.templates.map((tpl: any) => ({
+        id: tpl.id,
+        tabTitle: tpl.config?.tabTitle,
+        tabImage: tpl.config?.tabImage,
+        tabSystemItem: tpl.config?.tabSystemItem,
+        tabSystemImageName: tpl.config?.tabSystemImageName,
+      }));
+    }
+    const result = JSON.parse(JSON.stringify(configToSerialize));
     traverse(result);
     return result;
   }
