@@ -3,6 +3,9 @@
 #import <React/RCTConvert.h>
 #import <React/RCTRootView.h>
 #import <React/RCTImageSource.h>
+// `RCTModuleRegistry` (and its `moduleForName:`) is declared in RCTBridgeModule.h,
+// which RNCarPlay.h already imports — there is no separate RCTModuleRegistry.h.
+#import <React/RCTLog.h>
 
 @implementation RNCarPlay
 {
@@ -15,6 +18,18 @@
 @synthesize searchResultBlock;
 @synthesize selectedResultBlock;
 @synthesize isNowPlayingActive;
+// New Architecture (bridgeless): `self.bridge` is nil, so RN modules such as
+// the image loader must be resolved through the injected module registry.
+@synthesize moduleRegistry = _moduleRegistry;
+
+// Returns the RN image loader in both the old (bridge) and the New
+// Architecture (bridgeless) — where `self.bridge` is nil.
+- (RCTImageLoader *)rncpImageLoader {
+    if (self.bridge) {
+        return [self.bridge moduleForClass:[RCTImageLoader class]];
+    }
+    return [_moduleRegistry moduleForName:"RCTImageLoader"];
+}
 
 -(void)startObserving {
     hasListeners = YES;
@@ -38,7 +53,10 @@
     store.window = window;
     [store setConnected:true];
     RNCarPlay *cp = [RNCarPlay allocWithZone:nil];
-    if (cp.bridge) {
+    // Gate on listeners (works with and without a bridge). If JS has not
+    // registered its listeners yet, it will pull the current state on mount via
+    // `checkForConnection`, so the connect event is never lost.
+    if (cp->hasListeners) {
         [cp sendEventWithName:@"didConnect" body:[self getConnectedWindowInformation:window]];
     }
 }
@@ -49,7 +67,7 @@
     [store setConnected:false];
     store.window.rootViewController = nil;
 
-    if (cp.bridge) {
+    if (cp->hasListeners) {
         [cp sendEventWithName:@"didDisconnect" body:@{}];
     }
 }
@@ -192,7 +210,7 @@ RCT_EXPORT_MODULE();
             }
 
             // Use React Native's image loader for proper async loading with caching
-            RCTImageLoader *imageLoader = [self.bridge moduleForClass:[RCTImageLoader class]];
+            RCTImageLoader *imageLoader = [self rncpImageLoader];
             RCTImageSource *source = [[RCTImageSource alloc] initWithURLRequest:[RCTConvert NSURLRequest:imageSource] size:CGSizeZero scale:1];
 
             [imageLoader loadImageWithURLRequest:source.request callback:^(NSError *error, UIImage *image) {
@@ -297,7 +315,7 @@ RCT_EXPORT_MODULE();
     }
 
     // Use React Native's image loader
-    RCTImageLoader *imageLoader = [self.bridge moduleForClass:[RCTImageLoader class]];
+    RCTImageLoader *imageLoader = [self rncpImageLoader];
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:imgUrlString]];
 
     [imageLoader loadImageWithURLRequest:request callback:^(NSError *error, UIImage *image) {
@@ -337,7 +355,7 @@ RCT_EXPORT_MODULE();
     }
 
     // Use React Native's image loader
-    RCTImageLoader *imageLoader = [self.bridge moduleForClass:[RCTImageLoader class]];
+    RCTImageLoader *imageLoader = [self rncpImageLoader];
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:imgUrlString]];
 
     [imageLoader loadImageWithURLRequest:request callback:^(NSError *error, UIImage *image) {
@@ -1373,9 +1391,17 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     }
 
     if ([config objectForKey:@"render"]) {
-        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:templateId initialProperties:@{}];
-        RNCarPlayViewController *viewController = [[RNCarPlayViewController alloc] initWithRootView:rootView];
-        store.window.rootViewController = viewController;
+        // `RCTRootView initWithBridge:` requires a bridge and crashes when it is
+        // nil, which is always the case on the New Architecture (bridgeless).
+        // Guard it so the Map template still connects; the embedded RN render
+        // path is only reachable on the old architecture.
+        if (self.bridge) {
+            RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:templateId initialProperties:@{}];
+            RNCarPlayViewController *viewController = [[RNCarPlayViewController alloc] initWithRootView:rootView];
+            store.window.rootViewController = viewController;
+        } else {
+            RCTLogWarn(@"[RNCarPlay] The Map template 'render' option is not supported on the New Architecture (bridgeless).");
+        }
     }
 }
 
