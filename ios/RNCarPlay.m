@@ -1880,9 +1880,23 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 }
 
 - (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name json:(NSDictionary*)json {
+    // CPTemplate.userInfo is declared `id`, and CPInterfaceControllerDelegate reports
+    // appear/disappear for EVERY template on the stack — including ones we never created
+    // (the system now-playing template, CarPlay's own alerts). Those carry no userInfo of
+    // ours, so -objectForKey: returns nil (or userInfo isn't even a dictionary), and
+    // -setObject:nil forKey: throws NSInvalidArgumentException. That was a live crash in
+    // -templateWillDisappear:animated:.
+    id userInfo = [template userInfo];
+    NSString *templateId = [userInfo isKindOfClass:[NSDictionary class]]
+        ? [(NSDictionary *)userInfo objectForKey:@"templateId"]
+        : nil;
+    // Without a templateId the event cannot be routed: every JS handler matches on
+    // `e.templateId === this.id`, so an event without one is dropped there anyway.
+    if (templateId == nil) {
+        return;
+    }
     NSMutableDictionary *body = [[NSMutableDictionary alloc] initWithDictionary:json];
-    NSDictionary *userInfo = [template userInfo];
-    [body setObject:[userInfo objectForKey:@"templateId"] forKey:@"templateId"];
+    [body setObject:templateId forKey:@"templateId"];
     if (hasListeners) {
         [self sendEventWithName:name body:body];
     }
