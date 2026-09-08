@@ -11,6 +11,8 @@
 {
     bool hasListeners;
     NSCache<NSString *, UIImage *> *_imageCache;
+    BOOL _templatePushInFlight;
+    NSUInteger _navigationGeneration;
 }
 
 @synthesize interfaceController;
@@ -65,6 +67,8 @@
     RNCarPlay *cp = [RNCarPlay allocWithZone:nil];
     RNCPStore *store = [RNCPStore sharedManager];
     [store setConnected:false];
+    cp->_navigationGeneration++;
+    cp->_templatePushInFlight = NO;
     store.window.rootViewController = nil;
 
     if (cp->hasListeners) {
@@ -214,11 +218,15 @@ RCT_EXPORT_MODULE();
             RCTImageSource *source = [[RCTImageSource alloc] initWithURLRequest:[RCTConvert NSURLRequest:imageSource] size:CGSizeZero scale:1];
 
             [imageLoader loadImageWithURLRequest:source.request callback:^(NSError *error, UIImage *image) {
+        // Image decoding finishes off-main; CarPlay and the result arrays are main-thread owned.
+        dispatch_async(dispatch_get_main_queue(), ^{
                 if (image) {
                     [self->_imageCache setObject:image forKey:uri];
                 }
                 if (completion) completion(image);
-            }];
+
+        });
+    }];
             return;
         }
     }
@@ -319,12 +327,16 @@ RCT_EXPORT_MODULE();
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:imgUrlString]];
 
     [imageLoader loadImageWithURLRequest:request callback:^(NSError *error, UIImage *image) {
+        // Image decoding finishes off-main; CarPlay and the result arrays are main-thread owned.
+        dispatch_async(dispatch_get_main_queue(), ^{
         if (image) {
             [self->_imageCache setObject:image forKey:imgUrlString];
             [item setImage:image];
         } else if (error) {
             NSLog(@"Failed to load image from URL: %@ - %@", imgUrlString, error);
         }
+
+        });
     }];
 }
 
@@ -359,6 +371,8 @@ RCT_EXPORT_MODULE();
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:imgUrlString]];
 
     [imageLoader loadImageWithURLRequest:request callback:^(NSError *error, UIImage *image) {
+        // Image decoding finishes off-main; CarPlay and the result arrays are main-thread owned.
+        dispatch_async(dispatch_get_main_queue(), ^{
         if (image) {
             [self->_imageCache setObject:image forKey:imgUrlString];
 
@@ -373,6 +387,8 @@ RCT_EXPORT_MODULE();
         } else if (error) {
             NSLog(@"Failed to load image for CPListImageRowItem from URL: %@ - %@", imgUrlString, error);
         }
+
+        });
     }];
 }
 
@@ -762,6 +778,8 @@ RCT_EXPORT_METHOD(finishNavigationSession:(NSString*)navigationSessionId) {
 }
 
 RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated) {
+    _navigationGeneration++;
+    _templatePushInFlight = NO;
     RNCPStore *store = [RNCPStore sharedManager];
     CPTemplate *template = [store findTemplateById:templateId];
 
@@ -780,21 +798,44 @@ RCT_EXPORT_METHOD(setRootTemplate:(NSString *)templateId animated:(BOOL)animated
 
 RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
     RNCPStore *store = [RNCPStore sharedManager];
+    CPInterfaceController *controller = store.interfaceController;
     CPTemplate *template = [store findTemplateById:templateId];
-    if (template) {
-        // Check if template is already on the navigation stack
-        NSArray *currentTemplates = store.interfaceController.templates;
-        if ([currentTemplates containsObject:template]) {
-            NSLog(@"Template %@ is already on the navigation stack, skipping push", templateId);
+    if (!template || !controller || ![store isConnected]) return;
+    if (_templatePushInFlight || [controller.templates containsObject:template]) return;
+
+    // Audio apps may have at most five levels, including the root. A completion
+    // handler alone does not prevent clientExceededHierarchyDepthLimit from
+    // terminating the process. Make room before pushing, and serialize rapid taps.
+    _templatePushInFlight = YES;
+    NSUInteger generation = _navigationGeneration;
+    void (^push)(void) = ^{
+        if (generation != self->_navigationGeneration) return;
+        if (![store isConnected] || store.interfaceController != controller) {
+            self->_templatePushInFlight = NO;
             return;
         }
-        [store.interfaceController pushTemplate:template animated:animated completion:^(BOOL done, NSError * _Nullable err) {
-            if (err) {
-                NSLog(@"Push template error: %@", err);
+        if (controller.templates.count >= 5) {
+            self->_templatePushInFlight = NO;
+            RCTLogWarn(@"CarPlay navigation still at maximum depth after pop");
+            return;
+        }
+        [controller pushTemplate:template animated:animated completion:^(BOOL done, NSError *error) {
+            if (generation == self->_navigationGeneration) self->_templatePushInFlight = NO;
+            if (error) RCTLogWarn(@"CarPlay push failed: %@", error);
+        }];
+    };
+    if (controller.templates.count >= 5) {
+        [controller popTemplateAnimated:NO completion:^(BOOL done, NSError *error) {
+            if (generation != self->_navigationGeneration) return;
+            if (!done || error) {
+                self->_templatePushInFlight = NO;
+                RCTLogWarn(@"CarPlay could not make room for template: %@", error);
+                return;
             }
+            push();
         }];
     } else {
-        NSLog(@"Failed to find template %@", templateId);
+        push();
     }
 }
 
