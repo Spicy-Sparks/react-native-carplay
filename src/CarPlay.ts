@@ -86,7 +86,8 @@ export interface InternalCarPlay extends NativeModule {
   reactToSelectedResult(status: boolean): void;
   updateListTemplateSections(id: string, config: unknown): void;
   updateListTemplateItem(id: string, config: unknown): void;
-  reactToUpdatedSearchText(id: string, items: unknown): void;
+  /** Same order as the native method: reactToUpdatedSearchText:(NSArray *)items templateId:(NSString *)templateId. */
+  reactToUpdatedSearchText(items: unknown, id: string): void;
   updateTabBarTemplates(id: string, config: unknown): void;
   activateVoiceControlState(id: string, identifier: string): void;
   // Android

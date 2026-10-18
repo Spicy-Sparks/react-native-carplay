@@ -11,7 +11,7 @@ def method(start):
   elif s[end]=='}': depth-=1
   end+=1
  return s[a:end]
-source=(Path(__file__).with_name('Harness.m')).read_text().replace('/* ACTUAL_METHODS */','\n'.join(method(x) for x in ['RCT_EXPORT_METHOD(pushTemplate:', '- (void)updateItemImageWithURL:', '- (void)updateListRowItemImageWithURL:']))
+source=(Path(__file__).with_name('Harness.m')).read_text().replace('/* ACTUAL_METHODS */','\n'.join(method(x) for x in ['RCT_EXPORT_METHOD(pushTemplate:', '- (void)updateItemImageWithURL:', '- (void)updateListRowItemImageWithURL:', 'RCT_EXPORT_METHOD(reactToUpdatedSearchText:', '- (NSNumber *)listItemIndex:']))
 with tempfile.TemporaryDirectory(prefix='rncp-native-') as temp:
  p=Path(temp);(p/'test.m').write_text(source)
  subprocess.run(['xcrun','clang','-fobjc-arc','-fblocks','-framework','Foundation',str(p/'test.m'),'-o',str(p/'test')],check=True)

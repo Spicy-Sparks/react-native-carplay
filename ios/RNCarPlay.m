@@ -819,10 +819,21 @@ RCT_EXPORT_METHOD(pushTemplate:(NSString *)templateId animated:(BOOL)animated) {
             RCTLogWarn(@"CarPlay navigation still at maximum depth after pop");
             return;
         }
-        [controller pushTemplate:template animated:animated completion:^(BOOL done, NSError *error) {
-            if (generation == self->_navigationGeneration) self->_templatePushInFlight = NO;
-            if (error) RCTLogWarn(@"CarPlay push failed: %@", error);
-        }];
+        // CarPlay checks the template class against the app's entitlement before
+        // pushing and raises NSInvalidArgumentException ("Unsupported object ...
+        // passed to pushTemplate:animated:completion:") for a class the category
+        // may not use, e.g. CPInformationTemplate in an audio app, or
+        // CPSearchTemplate in an audio app before iOS 27. Raised from a void
+        // TurboModule method it terminates the app, so drop the push instead.
+        @try {
+            [controller pushTemplate:template animated:animated completion:^(BOOL done, NSError *error) {
+                if (generation == self->_navigationGeneration) self->_templatePushInFlight = NO;
+                if (error) RCTLogWarn(@"CarPlay push failed: %@", error);
+            }];
+        } @catch (NSException *exception) {
+            self->_templatePushInFlight = NO;
+            RCTLogWarn(@"CarPlay rejected template %@ (%@): %@", templateId, exception.name, exception.reason);
+        }
     };
     if (controller.templates.count >= 5) {
         [controller popTemplateAnimated:NO completion:^(BOOL done, NSError *error) {
@@ -1351,7 +1362,17 @@ RCT_EXPORT_METHOD(activateVoiceControlState:(NSString*)templateId identifier:(NS
 }
 
 RCT_EXPORT_METHOD(reactToUpdatedSearchText:(NSArray *)items templateId:(NSString *)templateId) {
-    NSArray *sectionsItems = [self parseListItems:items startIndex:0 templateId:templateId];
+    // Up to 2.4.12 the JS wrapper passed (templateId, items), so `items` arrived as
+    // an NSString and parseListItems died enumerating it. Accept either order, and
+    // answer CarPlay with an empty list rather than leave its search spinner up.
+    id first = items, second = templateId;
+    if (![first isKindOfClass:[NSArray class]] && [second isKindOfClass:[NSArray class]]) {
+        first = templateId;
+        second = items;
+    }
+    NSArray *resultItems = [first isKindOfClass:[NSArray class]] ? first : @[];
+    NSString *resultTemplateId = [second isKindOfClass:[NSString class]] ? second : nil;
+    NSArray *sectionsItems = [self parseListItems:resultItems startIndex:0 templateId:resultTemplateId];
 
     if (self.searchResultBlock) {
         self.searchResultBlock(sectionsItems);
@@ -2025,7 +2046,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 # pragma SearchTemplate
 
 - (void)searchTemplate:(CPSearchTemplate *)searchTemplate selectedResult:(CPListItem *)item completionHandler:(void (^)(void))completionHandler {
-    NSNumber* index = [item.userInfo objectForKey:@"index"];
+    NSNumber* index = [self listItemIndex:item];
+    if (!index) {
+        completionHandler();
+        return;
+    }
     [self sendTemplateEventWithName:searchTemplate name:@"selectedResult" json:@{ @"index": index }];
     self.selectedResultBlock = completionHandler;
 }
@@ -2041,8 +2066,21 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 # pragma ListTemplate
 
+// The row index parseListItems stored in userInfo. A row that reaches the
+// delegate without it (not built by parseListItems, or userInfo replaced) has
+// nothing to report: building @{ @"index": nil } raised NSInvalidArgumentException.
+- (NSNumber *)listItemIndex:(CPListItem *)item {
+    id userInfo = item.userInfo;
+    id index = [userInfo isKindOfClass:[NSDictionary class]] ? [(NSDictionary *)userInfo objectForKey:@"index"] : nil;
+    return [index isKindOfClass:[NSNumber class]] ? index : nil;
+}
+
 - (void)listTemplate:(CPListTemplate *)listTemplate didSelectListItem:(CPListItem *)item completionHandler:(void (^)(void))completionHandler {
-    NSNumber* index = [item.userInfo objectForKey:@"index"];
+    NSNumber* index = [self listItemIndex:item];
+    if (!index) {
+        completionHandler();
+        return;
+    }
     [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
     self.selectedResultBlock = completionHandler;
     
