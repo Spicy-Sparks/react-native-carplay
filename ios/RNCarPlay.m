@@ -13,6 +13,10 @@
     NSCache<NSString *, UIImage *> *_imageCache;
     BOOL _templatePushInFlight;
     NSUInteger _navigationGeneration;
+    NSUInteger _requestSequence;
+    NSMutableDictionary<NSString *, NSDictionary *> *_searchRequests;
+    NSMutableDictionary<NSString *, NSDictionary *> *_selectionRequests;
+    NSMutableSet<NSString *> *_searchTemplateIds;
 }
 
 @synthesize interfaceController;
@@ -67,6 +71,10 @@
     RNCarPlay *cp = [RNCarPlay allocWithZone:nil];
     RNCPStore *store = [RNCPStore sharedManager];
     [store setConnected:false];
+    [cp cancelRequestsForTemplate:nil];
+    for (NSString *templateId in [cp->_searchTemplateIds copy]) {
+        [cp removeSearchTemplate:templateId];
+    }
     cp->_navigationGeneration++;
     cp->_templatePushInFlight = NO;
     store.window.rootViewController = nil;
@@ -83,6 +91,9 @@ RCT_EXPORT_MODULE();
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         sharedInstance = [super allocWithZone:zone];
+        sharedInstance->_searchRequests = [NSMutableDictionary new];
+        sharedInstance->_selectionRequests = [NSMutableDictionary new];
+        sharedInstance->_searchTemplateIds = [NSMutableSet new];
         sharedInstance->_imageCache = [[NSCache alloc] init];
         sharedInstance->_imageCache.countLimit = 100; // Cache up to 100 images
     });
@@ -112,6 +123,7 @@ RCT_EXPORT_MODULE();
         @"didSelectListItemRowImage",
         @"scrollToBottom",
         // search
+        @"templateRemoved",
         @"updatedSearchText",
         @"searchButtonPressed",
         @"selectedResult",
@@ -414,6 +426,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
 
     if ([type isEqualToString:@"search"]) {
         CPSearchTemplate *searchTemplate = [[CPSearchTemplate alloc] init];
+        [_searchTemplateIds addObject:templateId];
         searchTemplate.delegate = self;
         carPlayTemplate = searchTemplate;
     }
@@ -1361,6 +1374,70 @@ RCT_EXPORT_METHOD(activateVoiceControlState:(NSString*)templateId identifier:(NS
     }
 }
 
+// Requests are stored before emitting to JS and removed before invoking their
+// completion. Tokens are process-monotonic, including across reconnects.
+- (NSString *)nextRequestId {
+    return [NSString stringWithFormat:@"%llu", (unsigned long long)++_requestSequence];
+}
+
+- (void)completeSearch:(NSArray *)items templateId:(NSString *)templateId requestId:(NSString *)requestId {
+    NSDictionary *request = _searchRequests[requestId];
+    if (!request || ![request[@"templateId"] isEqualToString:templateId]) return;
+    [_searchRequests removeObjectForKey:requestId];
+    SearchResultUpdateBlock completion = request[@"completion"];
+    NSArray *rows = [self parseListItems:items ?: @[] startIndex:0 templateId:templateId];
+    completion(rows);
+}
+
+- (void)completeSelection:(NSString *)templateId requestId:(NSString *)requestId {
+    NSDictionary *request = _selectionRequests[requestId];
+    if (!request || ![request[@"templateId"] isEqualToString:templateId]) return;
+    [_selectionRequests removeObjectForKey:requestId];
+    SelectedResultBlock completion = request[@"completion"];
+    completion();
+}
+
+- (void)cancelSearchesForTemplate:(NSString *)templateId {
+    for (NSString *requestId in [_searchRequests allKeys]) {
+        NSDictionary *request = _searchRequests[requestId];
+        if (!templateId || [request[@"templateId"] isEqualToString:templateId]) {
+            [_searchRequests removeObjectForKey:requestId];
+            SearchResultUpdateBlock completion = request[@"completion"];
+            completion(@[]);
+        }
+    }
+}
+
+- (void)cancelRequestsForTemplate:(NSString *)templateId {
+    [self cancelSearchesForTemplate:templateId];
+    for (NSString *requestId in [_selectionRequests allKeys]) {
+        NSDictionary *request = _selectionRequests[requestId];
+        if (!templateId || [request[@"templateId"] isEqualToString:templateId]) {
+            [self completeSelection:request[@"templateId"] requestId:requestId];
+        }
+    }
+    // Legacy blocks wrap the same requests; they may now only be no-ops.
+    if (!templateId) {
+        self.searchResultBlock = nil;
+        self.selectedResultBlock = nil;
+    }
+}
+
+- (void)removeSearchTemplate:(NSString *)templateId {
+    [self cancelRequestsForTemplate:templateId];
+    [_searchTemplateIds removeObject:templateId];
+    [[RNCPStore sharedManager] removeTemplate:templateId];
+    if (hasListeners) [self sendEventWithName:@"templateRemoved" body:@{ @"templateId": templateId }];
+}
+
+RCT_EXPORT_METHOD(reactToUpdatedSearchTextForRequest:(NSArray *)items templateId:(NSString *)templateId requestId:(NSString *)requestId) {
+    [self completeSearch:items templateId:templateId requestId:requestId];
+}
+
+RCT_EXPORT_METHOD(reactToSelectedResultForRequest:(NSString *)templateId requestId:(NSString *)requestId) {
+    [self completeSelection:templateId requestId:requestId];
+}
+
 RCT_EXPORT_METHOD(reactToUpdatedSearchText:(NSArray *)items templateId:(NSString *)templateId) {
     // Up to 2.4.12 the JS wrapper passed (templateId, items), so `items` arrived as
     // an NSString and parseListItems died enumerating it. Accept either order, and
@@ -2051,8 +2128,12 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         completionHandler();
         return;
     }
-    [self sendTemplateEventWithName:searchTemplate name:@"selectedResult" json:@{ @"index": index }];
-    self.selectedResultBlock = completionHandler;
+    NSString *templateId = searchTemplate.userInfo[@"templateId"];
+    if (!templateId) { completionHandler(); return; }
+    NSString *requestId = [self nextRequestId];
+    _selectionRequests[requestId] = @{ @"templateId": templateId, @"completion": [completionHandler copy] };
+    self.selectedResultBlock = ^{ [self completeSelection:templateId requestId:requestId]; };
+    [self sendTemplateEventWithName:searchTemplate name:@"selectedResult" json:@{ @"index": index, @"requestId": requestId }];
 }
 
 - (void)searchTemplateSearchButtonPressed:(CPSearchTemplate *)searchTemplate {
@@ -2060,8 +2141,19 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 }
 
 - (void)searchTemplate:(CPSearchTemplate *)searchTemplate updatedSearchText:(NSString *)searchText completionHandler:(void (^)(NSArray<CPListItem *> * _Nonnull))completionHandler {
-    [self sendTemplateEventWithName:searchTemplate name:@"updatedSearchText" json:@{ @"searchText": searchText }];
-    self.searchResultBlock = completionHandler;
+    NSString *templateId = searchTemplate.userInfo[@"templateId"];
+    if (!templateId) { completionHandler(@[]); return; }
+    [self cancelSearchesForTemplate:templateId];
+    NSString *requestId = [self nextRequestId];
+    _searchRequests[requestId] = @{ @"templateId": templateId, @"completion": [completionHandler copy] };
+    self.searchResultBlock = ^(NSArray *rows) {
+        NSDictionary *request = self->_searchRequests[requestId];
+        if (!request) return;
+        [self->_searchRequests removeObjectForKey:requestId];
+        SearchResultUpdateBlock completion = request[@"completion"];
+        completion(rows);
+    };
+    [self sendTemplateEventWithName:searchTemplate name:@"updatedSearchText" json:@{ @"searchText": searchText, @"requestId": requestId }];
 }
 
 # pragma ListTemplate
@@ -2081,8 +2173,12 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         completionHandler();
         return;
     }
-    [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index }];
-    self.selectedResultBlock = completionHandler;
+    NSString *selectionTemplateId = listTemplate.userInfo[@"templateId"];
+    if (!selectionTemplateId) { completionHandler(); return; }
+    NSString *requestId = [self nextRequestId];
+    _selectionRequests[requestId] = @{ @"templateId": selectionTemplateId, @"completion": [completionHandler copy] };
+    self.selectedResultBlock = ^{ [self completeSelection:selectionTemplateId requestId:requestId]; };
+    [self sendTemplateEventWithName:listTemplate name:@"didSelectListItem" json:@{ @"index": index, @"requestId": requestId }];
     
     // Check if we should trigger scroll to bottom callback for infinite scroll
     NSDictionary *templateUserInfo = [listTemplate userInfo];
@@ -2137,6 +2233,15 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 
 - (void)templateDidDisappear:(CPTemplate *)aTemplate animated:(BOOL)animated {
     [self sendTemplateEventWithName:aTemplate name:@"didDisappear" json:@{ @"animated": @(animated) }];
+    NSString *templateId = aTemplate.userInfo[@"templateId"];
+    if (!templateId) return;
+    [self cancelRequestsForTemplate:templateId];
+    RNCPStore *store = [RNCPStore sharedManager];
+    if ([aTemplate isKindOfClass:[CPSearchTemplate class]] &&
+        ![store.interfaceController.templates containsObject:aTemplate] &&
+        store.interfaceController.presentedTemplate != aTemplate) {
+        [self removeSearchTemplate:templateId];
+    }
 }
 
 - (void)templateWillAppear:(CPTemplate *)aTemplate animated:(BOOL)animated {

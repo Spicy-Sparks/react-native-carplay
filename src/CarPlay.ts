@@ -84,6 +84,8 @@ export interface InternalCarPlay extends NativeModule {
   getMaximumNumberOfGridImages(id: string): Promise<number>;
   getMaximumListImageRowItemImageSize(id: string): Promise<ImageSize>;
   reactToSelectedResult(status: boolean): void;
+  reactToSelectedResultForRequest?(templateId: string, requestId: string): void;
+  reactToUpdatedSearchTextForRequest?(items: unknown, templateId: string, requestId: string): void;
   updateListTemplateSections(id: string, config: unknown): void;
   updateListTemplateItem(id: string, config: unknown): void;
   /** Same order as the native method: reactToUpdatedSearchText:(NSArray *)items templateId:(NSString *)templateId. */

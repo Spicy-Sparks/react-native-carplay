@@ -16,3 +16,22 @@ with tempfile.TemporaryDirectory(prefix='rncp-native-') as temp:
  p=Path(temp);(p/'test.m').write_text(source)
  subprocess.run(['xcrun','clang','-fobjc-arc','-fblocks','-framework','Foundation',str(p/'test.m'),'-o',str(p/'test')],check=True)
  subprocess.run([str(p/'test')],check=True,timeout=20)
+
+request_methods = [
+    '- (NSString *)nextRequestId', '- (void)completeSearch:',
+    '- (void)completeSelection:', '- (void)cancelSearchesForTemplate:',
+    '- (void)cancelRequestsForTemplate:', '- (void)removeSearchTemplate:',
+    'RCT_EXPORT_METHOD(reactToUpdatedSearchTextForRequest:',
+    'RCT_EXPORT_METHOD(reactToSelectedResultForRequest:',
+    '- (void)searchTemplate:(CPSearchTemplate *)searchTemplate selectedResult:',
+    '- (void)searchTemplate:(CPSearchTemplate *)searchTemplate updatedSearchText:',
+    '- (NSNumber *)listItemIndex:',
+    '- (void)listTemplate:(CPListTemplate *)listTemplate didSelectListItem:',
+    '- (void)templateDidDisappear:',
+]
+request_source = Path(__file__).with_name('RequestHarness.m').read_text().replace(
+    '/* ACTUAL_METHODS */', '\n'.join(method(x) for x in request_methods))
+with tempfile.TemporaryDirectory(prefix='rncp-requests-') as temp:
+ p=Path(temp);(p/'test.m').write_text(request_source)
+ subprocess.run(['xcrun','clang','-fobjc-arc','-fblocks','-framework','Foundation',str(p/'test.m'),'-o',str(p/'test')],check=True)
+ subprocess.run([str(p/'test')],check=True,timeout=20)
