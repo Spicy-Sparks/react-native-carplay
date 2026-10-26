@@ -7,6 +7,11 @@
 // which RNCarPlay.h already imports — there is no separate RCTModuleRegistry.h.
 #import <React/RCTLog.h>
 
+@interface RNCarPlay ()
+- (void)cancelRequestsForTemplate:(NSString *)templateId;
+- (void)removeSearchTemplate:(NSString *)templateId;
+@end
+
 @implementation RNCarPlay
 {
     bool hasListeners;
