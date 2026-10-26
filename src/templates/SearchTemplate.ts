@@ -1,5 +1,5 @@
-import { Image, Platform } from 'react-native';
-import { CarPlay } from '../CarPlay';
+import { Image } from 'react-native';
+import { RequestEvent, searchCompletion, selectionCompletion } from './requestCompletion';
 import { ListItem } from '../interfaces/ListItem';
 import { BaseEvent, Template, TemplateConfig } from './Template';
 
@@ -24,6 +24,13 @@ export interface SearchTemplateConfig extends TemplateConfig {
 }
 
 export class SearchTemplate extends Template<SearchTemplateConfig> {
+  private searchGeneration = 0;
+
+  public dispose(): void {
+    this.searchGeneration++;
+    super.dispose();
+  }
+
   public get type(): string {
     return 'search';
   }
@@ -39,32 +46,38 @@ export class SearchTemplate extends Template<SearchTemplateConfig> {
 
     super(config);
 
-    CarPlay.emitter.addListener(
-      'updatedSearchText',
-      (e: { searchText: string; templateId: string }) => {
-        if (config.onSearch && e.templateId === this.id) {
-          void Promise.resolve(config.onSearch(e.searchText)).then((result = []) => {
-            if (Platform.OS === 'ios') {
-              const parsedResults = result.map(item => ({
-                ...item,
-                image: item.image ? Image.resolveAssetSource(item.image) : undefined,
-              }));
-              CarPlay.bridge.reactToUpdatedSearchText(parsedResults, e.templateId);
-            }
-          });
-        }
-      },
-    );
-
-    CarPlay.emitter.addListener(
-      'selectedResult',
-      (e: { templateId: string; index: number; id?: string }) => {
-        if (config.onItemSelect && e.templateId === this.id) {
-          void Promise.resolve(config.onItemSelect(e)).then(
-            () => Platform.OS === 'ios' && CarPlay.bridge.reactToSelectedResult(true),
+    this.addListener('didDisappear', (e: BaseEvent) => {
+      if (e.templateId === this.id) this.searchGeneration++;
+    });
+    this.addListener('updatedSearchText', (e: RequestEvent & { searchText: string }) => {
+      if (e.templateId !== this.id || this.disposed) return;
+      const generation = ++this.searchGeneration;
+      const complete = searchCompletion(e);
+      void Promise.resolve()
+        .then(() => config.onSearch?.(e.searchText) ?? [])
+        .then(result => {
+          if (this.disposed || generation !== this.searchGeneration) return complete([]);
+          complete(
+            result.map(item => ({
+              ...item,
+              image: item.image ? Image.resolveAssetSource(item.image) : undefined,
+            })),
           );
-        }
-      },
-    );
+        })
+        .catch(error => {
+          console.error('CarPlay search failed', error);
+          complete([]);
+        });
+    });
+    this.addListener('selectedResult', (e: RequestEvent & { index: number }) => {
+      if (e.templateId !== this.id || this.disposed) return;
+      const complete = selectionCompletion(e);
+      void Promise.resolve()
+        .then(() => config.onItemSelect?.(e))
+        .catch(error => {
+          console.error('CarPlay search selection failed', error);
+        })
+        .then(complete);
+    });
   }
 }

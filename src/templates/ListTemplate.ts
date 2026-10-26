@@ -5,6 +5,7 @@ import { ListItem } from '../interfaces/ListItem';
 import { ListItemUpdate } from '../interfaces/ListItemUpdate';
 import { ListSection } from '../interfaces/ListSection';
 import { Template, TemplateConfig } from './Template';
+import { RequestEvent, selectionCompletion } from './requestCompletion';
 
 export interface ListTemplateConfig extends TemplateConfig {
   /**
@@ -143,17 +144,18 @@ export class ListTemplate extends Template<ListTemplateConfig> {
   constructor(public config: ListTemplateConfig) {
     super(config);
 
-    CarPlay.emitter.addListener('didSelectListItem', (e: { templateId: string; index: number }) => {
-      if (config.onItemSelect && e.templateId === this.id) {
-        void Promise.resolve(config.onItemSelect(e)).then(() => {
-          if (Platform.OS === 'ios') {
-            CarPlay.bridge.reactToSelectedResult(true);
-          }
-        });
-      }
+    this.addListener('didSelectListItem', (e: RequestEvent & { index: number }) => {
+      if (e.templateId !== this.id || this.disposed) return;
+      const complete = selectionCompletion(e);
+      void Promise.resolve()
+        .then(() => config.onItemSelect?.(e))
+        .catch(error => {
+          console.error('CarPlay list selection failed', error);
+        })
+        .then(complete);
     });
 
-    CarPlay.emitter.addListener(
+    this.addListener(
       'didSelectListItemRowImage',
       (e: { templateId: string; index: number; imageIndex: number }) => {
         if (config.onImageRowItemSelect && e.templateId === this.id) {
@@ -166,14 +168,11 @@ export class ListTemplate extends Template<ListTemplateConfig> {
       },
     );
 
-    CarPlay.emitter.addListener(
-      'scrollToBottom',
-      (e: { templateId: string; remainingItems: number }) => {
-        if (config.onScrollToBottom && e.templateId === this.id) {
-          config.onScrollToBottom(e);
-        }
-      },
-    );
+    this.addListener('scrollToBottom', (e: { templateId: string; remainingItems: number }) => {
+      if (config.onScrollToBottom && e.templateId === this.id) {
+        config.onScrollToBottom(e);
+      }
+    });
   }
 
   public updateSections = (sections: ListSection[]) => {

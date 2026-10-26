@@ -10,6 +10,7 @@
 @property (nonatomic, retain) CPWindow *window;
 
 + (id)sharedManager;
+- (void)removeTemplate:(NSString *)templateId;
 - (CPTemplate*) findTemplateById: (NSString*)templateId;
 - (NSString*) setTemplate:(NSString*)templateId template:(CPTemplate*)carPlayTemplate;
 - (CPTrip*) findTripById: (NSString*)tripId;

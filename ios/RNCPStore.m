@@ -38,6 +38,10 @@
     return _connected;
 }
 
+- (void)removeTemplate:(NSString *)templateId {
+    [_templatesStore removeObjectForKey:templateId];
+}
+
 - (CPTemplate*) findTemplateById:(NSString*)templateId {
     return [_templatesStore objectForKey:templateId];
 }

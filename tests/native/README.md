@@ -15,3 +15,15 @@ in either argument order, and a selected row without its index. The unpatched
 
 This checks native method behavior. It does not substitute for a CarPlay session
 in a release app connected to a vehicle.
+
+The second harness compiles the production request delegates and completion
+methods: search supersession, out-of-order replies, wrong-template and duplicate
+replies, independent templates, overlapping search/list selections, cancellation,
+and hidden versus removed search templates. Run `node --test
+tests/request-ownership.cjs` for the JavaScript wrapper regressions on any host.
+Set `CARPLAY_PACKAGE_ROOT` to test a patched consumer package and
+`CARPLAY_SOURCE_KIND=lib` to exercise its compiled entry points.
+
+The optional token-aware native methods require a new binary. The JavaScript
+fallback for older binaries ignores obsolete replies across templates, but an
+old native binary cannot restore the completion callbacks it already overwrote.

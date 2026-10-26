@@ -71,6 +71,8 @@ export interface TemplateConfig {
    * @param e Event
    */
   onDidDisappear?(e: BaseEvent): void;
+  /** Fired when this template is removed from the native stack or disconnected. */
+  onRemoved?(e: BaseEvent): void;
 
   /**
    * Fired when bar button is pressed
@@ -80,6 +82,20 @@ export interface TemplateConfig {
 }
 
 export class Template<P> {
+  private subscriptions: Array<{ remove(): void }> = [];
+  public disposed = false;
+
+  protected addListener<T>(name: string, callback: (event: T) => void): void {
+    this.subscriptions.push(CarPlay.emitter.addListener(name, callback));
+  }
+
+  public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.subscriptions.forEach(subscription => subscription.remove());
+    this.subscriptions = [];
+    this.config.onRemoved?.({ templateId: this.id });
+  }
   public get type(): string {
     return 'unset';
   }
@@ -109,7 +125,7 @@ export class Template<P> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Object.entries(eventMap).forEach(([eventName, callbackName]: [string, any]) => {
-      CarPlay.emitter.addListener(eventName, (e: { id: string; templateId: string }) => {
+      this.addListener(eventName, (e: { id: string; templateId: string }) => {
         const configEventName = callbackName as keyof Pick<
           TemplateConfig,
           | 'onWillAppear'
@@ -122,6 +138,10 @@ export class Template<P> {
           config[configEventName]?.(e);
         }
       });
+    });
+
+    this.addListener('templateRemoved', (e: BaseEvent) => {
+      if (e.templateId === this.id) this.dispose();
     });
 
     if (this.type !== 'map') {
@@ -139,6 +159,7 @@ export class Template<P> {
   }
 
   updateTemplate = (config: P) => {
+    if (this.disposed) return;
     CarPlay.bridge.updateTemplate(this.id, this.parseConfig({ type: this.type, ...config }));
   };
 
@@ -148,15 +169,12 @@ export class Template<P> {
     function traverse(obj: any) {
       for (const i in obj) {
         if (String(i).match(/[Ii]mages$/)) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
           obj[i] = obj[i].map((asset: any) => resolveAssetSource(asset));
-        }
-        else if (String(i).match(/[Ii]mage$/)) {
+        } else if (String(i).match(/[Ii]mage$/)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call
           obj[i] = resolveAssetSource(obj[i]);
-        }
-        else if (obj[i] !== null && typeof obj[i] === 'object') {
+        } else if (obj[i] !== null && typeof obj[i] === 'object') {
           traverse(obj[i]);
         }
       }
@@ -166,7 +184,7 @@ export class Template<P> {
     const configToSerialize = { ...config };
     if (Array.isArray(config.templates)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      configToSerialize.templates = config.templates.map((tpl: any) => ({
+      configToSerialize.templates = (config.templates as unknown[]).map((tpl: any) => ({
         id: tpl.id,
         tabTitle: tpl.config?.tabTitle,
         tabImage: tpl.config?.tabImage,
