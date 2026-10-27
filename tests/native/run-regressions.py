@@ -2,15 +2,11 @@
 """Compile real RNCarPlay methods with native Foundation fakes for deterministic races."""
 from pathlib import Path
 import subprocess, tempfile, sys
+from source_methods import extract_method
 root=Path(__file__).resolve().parents[2]
 s=(Path(sys.argv[1]) if len(sys.argv)>1 else root/'ios/RNCarPlay.m').read_text()
 def method(start):
- a=s.index(start); body=s.index('{',a); end=body+1; depth=1
- while depth:
-  if s[end]=='{': depth+=1
-  elif s[end]=='}': depth-=1
-  end+=1
- return s[a:end]
+ return extract_method(s, start)
 source=(Path(__file__).with_name('Harness.m')).read_text().replace('/* ACTUAL_METHODS */','\n'.join(method(x) for x in ['RCT_EXPORT_METHOD(pushTemplate:', '- (void)updateItemImageWithURL:', '- (void)updateListRowItemImageWithURL:', 'RCT_EXPORT_METHOD(reactToUpdatedSearchText:', '- (NSNumber *)listItemIndex:']))
 with tempfile.TemporaryDirectory(prefix='rncp-native-') as temp:
  p=Path(temp);(p/'test.m').write_text(source)

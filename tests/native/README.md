@@ -2,6 +2,11 @@
 
 Run `python3 tests/native/run-regressions.py` on macOS with Xcode.
 
+Run `python3 -m unittest discover -s tests/native -p test_source_methods.py`
+on any host to check extraction of method implementations. Class-extension
+prototypes must be skipped: otherwise the request harness can accidentally
+include a second class implementation instead of the cleanup methods.
+
 The runner compiles the production Objective-C navigation and cover update methods
 against Foundation test doubles. The controller enforces the five-level audio
 hierarchy and supports delayed/failing completions; the image loader completes on
