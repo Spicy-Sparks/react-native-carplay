@@ -21,6 +21,9 @@ in either argument order, and a selected row without its index. The unpatched
 This checks native method behavior. It does not substitute for a CarPlay session
 in a release app connected to a vehicle.
 
+See [27 October 2026 verification](verification-2026-10-27.md) for executed
+macOS/SDK checks and the incomplete full-app build/hardware checks.
+
 The second harness compiles the production request delegates and completion
 methods: search supersession, out-of-order replies, wrong-template and duplicate
 replies, independent templates, overlapping search/list selections, cancellation,
