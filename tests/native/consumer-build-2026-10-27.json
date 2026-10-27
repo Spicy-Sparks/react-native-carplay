@@ -1,0 +1,105 @@
+{
+  "buildSucceeded": true,
+  "images": [
+    {
+      "path": "Lyra",
+      "sha256": "250e528d0bd591d273984e2ee66fea1ea59befd4575712c1188954ddb6464ad4",
+      "bytes": 40216,
+      "architecture": "arm64",
+      "selectors": {
+        "reactToUpdatedSearchTextForRequest:templateId:requestId:": false,
+        "reactToSelectedResultForRequest:requestId:": false
+      }
+    },
+    {
+      "path": "__preview.dylib",
+      "sha256": "b0eddf42fe39937e7f060c227f6dfab68eb12a7a496cb2fb12b0401002f0c5b9",
+      "bytes": 16752,
+      "architecture": "arm64",
+      "selectors": {
+        "reactToUpdatedSearchTextForRequest:templateId:requestId:": false,
+        "reactToSelectedResultForRequest:requestId:": false
+      }
+    },
+    {
+      "path": "Lyra.debug.dylib",
+      "sha256": "769d227aad73165f3150a128b42bc8ba607b6d666a8bfd1de251fafd23da034c",
+      "bytes": 206830352,
+      "architecture": "arm64",
+      "selectors": {
+        "reactToUpdatedSearchTextForRequest:templateId:requestId:": true,
+        "reactToSelectedResultForRequest:requestId:": true
+      }
+    }
+  ],
+  "info": {
+    "CFBundleIdentifier": "org.reactjs.native.example.Lyra",
+    "CFBundleVersion": "17",
+    "CFBundleShortVersionString": "1.4.19",
+    "DTPlatformName": "iphonesimulator",
+    "CFBundleExecutable": "Lyra",
+    "DTSDKName": "iphonesimulator27.0"
+  },
+  "requestProtocolInProduct": true,
+  "nativeCarPlayCompileActions": 4,
+  "objcMethodSymbols": {
+    "reactToUpdatedSearchTextForRequest:templateId:requestId:": [
+      "00000000021e77f8 t -[RNCarPlay reactToUpdatedSearchTextForRequest:templateId:requestId:]",
+      "00000000021e77f8 - 01 0000   FUN -[RNCarPlay reactToUpdatedSearchTextForRequest:templateId:requestId:]"
+    ],
+    "reactToSelectedResultForRequest:requestId:": [
+      "00000000021e78c0 t -[RNCarPlay reactToSelectedResultForRequest:requestId:]",
+      "00000000021e78c0 - 01 0000   FUN -[RNCarPlay reactToSelectedResultForRequest:requestId:]"
+    ]
+  },
+  "compilerErrors": [],
+  "scope": {
+    "nativeUnsignedDebugSimulatorBuild": true,
+    "javascriptBundled": false,
+    "signedDeviceBuild": false,
+    "newProductInstalled": false,
+    "storeUpload": false
+  },
+  "inputs": {
+    "appRevision": "2ed264077d523f1a3fb6d3f3b5730ff12edd0ec2",
+    "coreRevision": "4c674275c08342423e0af10762a694cb96a6907a",
+    "requestProtocolSha256": "cc18928738a8bdca2cf9debc48c2164a2af851c42d1a63777235420ea4c43bf6",
+    "podLocksMatch": true,
+    "rewrittenGeneratedFiles": 1
+  },
+  "sourceChecks": {
+    "exit": 0,
+    "success": true,
+    "numTotalTestSuites": 25,
+    "numPassedTestSuites": 25,
+    "numFailedTestSuites": 0,
+    "numTotalTests": 196,
+    "numPassedTests": 196,
+    "numFailedTests": 0
+  },
+  "nativeCompileSources": [
+    "/Lyra-Client/universal/node_modules/@javascriptcommon/react-native-carplay/ios/RNCarPlayViewController.m",
+    "/Lyra-Client/universal/node_modules/@javascriptcommon/react-native-carplay/ios/RNCarPlay.m",
+    "/Lyra-Client/universal/node_modules/@javascriptcommon/react-native-carplay/ios/RNCPStore.m",
+    "/Lyra-Client/universal/node_modules/@javascriptcommon/react-native-carplay/ios/RCTConvert+RNCarPlay.m"
+  ],
+  "buildVerdict": "passed",
+  "inspectionNote": "The initial checker inspected only the small launcher. Xcode keeps Debug implementation methods in Lyra.debug.dylib; symbols and strings were then verified in that actual runtime image.",
+  "verifiedAtUtc": "2026-10-27T19:53:35.174312+00:00",
+  "wrapperTests": {
+    "sourcePassed": 6,
+    "compiledJavaScriptPassed": 6
+  },
+  "releasePreflight": {
+    "passed": true,
+    "requiredAncestors": 161,
+    "cleanApp": true,
+    "exactCorePin": true
+  },
+  "artifact": {
+    "file": "Lyra-native-arm64-simulator.zip",
+    "bytes": 81602173,
+    "sha256": "e87c9df440b9ee2615d99a8e8569c6f5ad487aa8aedea8437bb36e2935f05200",
+    "kind": "unsigned Debug arm64 simulator native build, without JavaScript bundle"
+  }
+}

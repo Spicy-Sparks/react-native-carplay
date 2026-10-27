@@ -1,8 +1,9 @@
 # CarPlay native verification — 27 October 2026
 
-The native CarPlay repairs now have executed macOS regression evidence and iOS
-SDK compilation evidence. This is **not** a successful complete app build or a
-physical vehicle acceptance test.
+The native CarPlay repairs have executed macOS regressions, iOS SDK compilations,
+and a successful Lyra native Debug simulator build. Both request-aware methods
+are present in the actual runtime image. JavaScript bundling, a signed device
+build and physical vehicle acceptance are **not** covered by that native build.
 
 ## Executed successfully
 
@@ -33,7 +34,42 @@ The Mac's installed header environments are RN 0.87.1 for Lyra and RN 0.86.3 for
 eSound; the eSound check is compatibility evidence against that installed
 environment, not a claim that its entire current client is prepared for release.
 
-## Complete app build: not verified green
+## Lyra native simulator build: passed
+
+A later isolated run completed with `** BUILD SUCCEEDED **` on the same Mac mini:
+
+- Lyra `2ed264077d523f1a3fb6d3f3b5730ff12edd0ec2`, exact Core pin
+  `4c674275c08342423e0af10762a694cb96a6907a`, RN 0.87.1 and SDK 27.0.
+- The clean-app preflight passed all 161 required ancestors and canonical links.
+  All 25 Core CarPlay suites / 196 tests passed. The package's source and compiled
+  JavaScript each passed six request-wrapper tests.
+- APFS copies of installed dependencies and Pods were isolated from the primary
+  checkouts. The CarPlay package was replaced with pristine 2.4.12 plus the tracked
+  patch, producing the same native SHA-256 recorded above. The copied Pod locks
+  matched byte-for-byte; generated paths were adjusted inside the QA copy.
+- Before compilation, React Native's replacement script regenerated the owned
+  Debug framework, and its previously missing Debug symbols were verified.
+- Unsigned `Debug`, generic iOS Simulator, `arm64`, one build job,
+  `DEBUG_INFORMATION_FORMAT=dwarf`, explicit Clang modules and index storage
+  disabled. `SKIP_BUNDLING=1` and `RCT_NO_LAUNCH_PACKAGER=1` were set.
+  All four CarPlay Objective-C files compiled; the app and extensions linked.
+- Both `-[RNCarPlay reactToUpdatedSearchTextForRequest:templateId:requestId:]`
+  and `-[RNCarPlay reactToSelectedResultForRequest:requestId:]` exist as method
+  symbols in `Lyra.debug.dylib`. Its SHA-256 is
+  `769d227aad73165f3150a128b42bc8ba607b6d666a8bfd1de251fafd23da034c`.
+  Xcode's small `Lyra` launcher does not contain those methods: an initial
+  launcher-only inspection was corrected to inspect the actual Debug image.
+
+Machine-readable results are in [consumer-build-2026-10-27.json](consumer-build-2026-10-27.json).
+An 81,602,173-byte native simulator archive was retained privately on the build
+host, SHA-256 `e87c9df440b9ee2615d99a8e8569c6f5ad487aa8aedea8437bb36e2935f05200`.
+Its app metadata remains development version 1.4.19 (17); this is not a newly
+published release. It has no bundled JavaScript and was not installed or launched.
+After retaining that archive and the JSON evidence, the owned temporary clones
+and DerivedData were removed, restoring approximately 9.5 GiB free. Primary
+checkouts, their generated overlays and unrelated build artifacts were preserved.
+
+## Earlier isolated attempt: failed before acceptance
 
 A clean, isolated Lyra checkout `1d95bacecb2f511746206b66dec7a61c2e657817`
 with exact Core pin `c06033e6ba5a499c2df241ea8a2736fad2f7f55f` passed the
@@ -63,8 +99,23 @@ reset or cleaned.
 
 ## Hardware, audio and release limits
 
-- No iPhone was connected to the checked Mac mini; no physical CarPlay test was
-  executed. Keyboard input and the volume symptom remain unverified on a vehicle.
+- No iPhone was connected to the Mac mini. A subsequent authenticated check of
+  the authorized MacBook Pro found a connected iPhone 14 Pro on iOS 27.0.1.
+  Argent launched its already-installed Lyra development app and inspected the
+  device picker. The app showed this iPhone as the listening device; the system
+  audio picker showed `iPhone Speaker` selected. No CarPlay connection was
+  observed. Playback remained paused and the app was returned to Home.
+  This existing installation has no verified source/binary equivalence with the
+  new simulator artifact. Keyboard input and the reported volume symptom remain
+  unverified on a vehicle; there was no new Lyra installation, data reset or audio
+  fix.
+- Physical iOS `describe` requires registering the app with `launch-app` first;
+  the initial unregistered probe timed out. `debugger-status` explicitly rejects
+  physical iOS on the checked Argent installation. App-scoped accessibility also
+  exposed hidden consent content and did not describe the system audio overlay;
+  screenshots were needed to validate visible state. A dispatched tap alone was
+  not treated as a successful UI assertion. The device's Argent runner was stopped
+  with a device-scoped teardown; other devices and Metro sessions were preserved.
 - The installed volume-manager observer and foreground callback already contain
   the earlier audio-session patch: they do not actively call `setCategory` or
   `setActive`. Comments mentioning those calls must not be counted as executable
