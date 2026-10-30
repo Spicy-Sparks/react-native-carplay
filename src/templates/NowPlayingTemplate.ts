@@ -9,7 +9,14 @@ export type NowPlayingButton = {
     }
   | {
       type: 'image';
-      image: ImageSourcePropType;
+      image?: ImageSourcePropType;
+      /**
+       * SF Symbol name (e.g. 'heart.fill'), drawn natively at the largest size CarPlay allows. Wins over
+       * `image`. Not called `systemImage`: parseConfig resolves every key ending in "Image" as a bundled asset.
+       */
+      systemImageName?: string;
+      /** Draws the button in its selected state, e.g. shuffle on. Only image buttons can show one. */
+      selected?: boolean;
     }
 );
 

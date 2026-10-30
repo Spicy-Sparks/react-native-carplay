@@ -210,6 +210,42 @@ RCT_EXPORT_MODULE();
     return resizedImage;
 }
 
+// CarPlay only ever shrinks a now playing image, down to
+// CPNowPlayingButtonMaximumImageSize; it never enlarges one, and otherwise uses the
+// point size and scale the image arrives with. These buttons used to pass bundle PNGs
+// through untouched, and in a car they came out a fraction of the size of Apple
+// Music's controls. Every custom button image is drawn here at exactly that box,
+// aspect-fit, at the car screen's scale, so its size no longer depends on how the asset
+// was exported. An SF Symbol name, when given, replaces the bundled image.
+- (UIImage *)nowPlayingButtonImage:(UIImage *)image systemImageName:(NSString *)systemImageName {
+    CGSize box = CPNowPlayingButtonMaximumImageSize;
+    if (systemImageName.length > 0) {
+        UIImageSymbolConfiguration *symbolConfig = [UIImageSymbolConfiguration configurationWithPointSize:box.height weight:UIImageSymbolWeightMedium];
+        UIImage *symbol = [UIImage systemImageNamed:systemImageName withConfiguration:symbolConfig];
+        if (symbol) {
+            // The dark variant CarPlay expects: it recolors the image for the car's theme.
+            image = [symbol imageWithTintColor:UIColor.blackColor renderingMode:UIImageRenderingModeAlwaysOriginal];
+        }
+    }
+    if (!image || image.size.width <= 0 || image.size.height <= 0 || box.width <= 0 || box.height <= 0) {
+        return image;
+    }
+
+    CGFloat ratio = MIN(box.width / image.size.width, box.height / image.size.height);
+    CGSize fitted = CGSizeMake(image.size.width * ratio, image.size.height * ratio);
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.opaque = NO;
+    RNCPStore *store = [RNCPStore sharedManager];
+    CGFloat carScale = store.interfaceController.carTraitCollection.displayScale;
+    if (carScale > 0) {
+        format.scale = carScale;
+    }
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:box format:format];
+    return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        [image drawInRect:CGRectMake((box.width - fitted.width) / 2, (box.height - fitted.height) / 2, fitted.width, fitted.height)];
+    }];
+}
+
 // Helper method to load image asynchronously using React Native's image loader
 - (void)loadImageAsync:(id)imageSource completion:(void (^)(UIImage *image))completion {
     if (imageSource == nil || [imageSource isKindOfClass:[NSNull class]]) {
@@ -542,7 +578,8 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
 
                     if ([buttonType isEqualToString:@"image"]) {
                         id imageObj = (imageIndex < loadedImages.count) ? loadedImages[imageIndex] : nil;
-                        UIImage *image = ([imageObj isKindOfClass:[UIImage class]]) ? (UIImage *)imageObj : nil;
+                        UIImage *image = [self nowPlayingButtonImage:([imageObj isKindOfClass:[UIImage class]]) ? (UIImage *)imageObj : nil
+                                     systemImageName:[RCTConvert NSString:_button[@"systemImageName"]]];
                         imageIndex++;
 
                         if (image) {
@@ -568,6 +605,11 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
                         }];
                     }
 
+                    if ([buttonType isEqualToString:@"image"]) {
+                        // Only image buttons draw a custom selected state; the system shuffle and
+                        // repeat buttons take theirs from MPRemoteCommandCenter instead.
+                        button.selected = [RCTConvert BOOL:_button[@"selected"]];
+                    }
                     [buttons addObject:button];
                 }
             }
@@ -1021,7 +1063,8 @@ RCT_EXPORT_METHOD(updateTemplate:(NSString *)templateId config:(NSDictionary*)co
 
                         if ([buttonType isEqualToString:@"image"]) {
                             id imageObj = (imageIndex < loadedImages.count) ? loadedImages[imageIndex] : nil;
-                            UIImage *image = ([imageObj isKindOfClass:[UIImage class]]) ? (UIImage *)imageObj : nil;
+                            UIImage *image = [self nowPlayingButtonImage:([imageObj isKindOfClass:[UIImage class]]) ? (UIImage *)imageObj : nil
+                                     systemImageName:[RCTConvert NSString:_button[@"systemImageName"]]];
                             imageIndex++;
 
                             if (image) {
@@ -1047,6 +1090,11 @@ RCT_EXPORT_METHOD(updateTemplate:(NSString *)templateId config:(NSDictionary*)co
                             }];
                         }
 
+                        if ([buttonType isEqualToString:@"image"]) {
+                            // Only image buttons draw a custom selected state; the system shuffle and
+                            // repeat buttons take theirs from MPRemoteCommandCenter instead.
+                            button.selected = [RCTConvert BOOL:_button[@"selected"]];
+                        }
                         [buttons addObject:button];
                     }
                 }
