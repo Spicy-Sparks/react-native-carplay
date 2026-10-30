@@ -8,7 +8,7 @@ buildscript {
     mavenLocal()
     mavenCentral()
     google()
-    jcenter()
+    mavenCentral()
   }
 
   dependencies {
@@ -92,7 +92,7 @@ repositories {
   mavenLocal()
   mavenCentral()
   google()
-  jcenter()
+  mavenCentral()
 }
 
 def kotlin_version = getExtOrDefault('kotlinVersion')
