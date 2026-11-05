@@ -181,7 +181,10 @@ export class Template<P> {
     }
     // Handle templates array specially - extract id and tabTitle from Template instances
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const configToSerialize = { ...config };
+    // Sections and search results cross native NSArray parameters. Spreading an
+    // array into an object turns its indices into dictionary keys and crashes
+    // the native section parser, including when clearing a list with [].
+    const configToSerialize = Array.isArray(config) ? [...config] : { ...config };
     if (Array.isArray(config.templates)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       configToSerialize.templates = (config.templates as unknown[]).map((tpl: any) => ({

@@ -19,9 +19,10 @@ const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve()
 function harness(legacy = false) {
   const events = new EventEmitter();
   events.setMaxListeners(0);
-  const replies = [], selections = [], errors = [], cache = new Map();
+  const replies = [], selections = [], sectionUpdates = [], errors = [], cache = new Map();
   const bridge = {
     createTemplate() {}, updateTemplate() {},
+    updateListTemplateSections: (...args) => sectionUpdates.push(args),
     reactToUpdatedSearchText: (...args) => replies.push(args),
     reactToSelectedResult: (...args) => selections.push(args),
     ...(!legacy && {
@@ -40,7 +41,7 @@ function harness(legacy = false) {
     const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
     const localRequire = name => {
       if (name === 'react-native') return native;
-      if (name.includes('resolveAssetSource')) return { default: image => image };
+      if (name.includes('resolveAssetSource')) return { default: image => typeof image === 'number' ? { uri: `asset://${image}` } : image };
       if (name === '../CarPlay') return { CarPlay: carplay };
       if (name.startsWith('.')) return load(path.resolve(path.dirname(file), name + extension));
       throw new Error('Unexpected import: ' + name);
@@ -51,8 +52,32 @@ function harness(legacy = false) {
   const SearchTemplate = load(path.join(packageRoot, sourceKind, 'templates/SearchTemplate' + extension)).SearchTemplate;
   const ListTemplate = load(path.join(packageRoot, sourceKind, 'templates/ListTemplate' + extension)).ListTemplate;
   const emit = (name, template, fields = {}) => events.emit(name, { templateId: template.id, ...fields });
-  return { SearchTemplate, ListTemplate, events, emit, replies, selections, errors };
+  return { SearchTemplate, ListTemplate, events, emit, replies, selections, sectionUpdates, errors };
 }
+
+test('list section updates reach the native NSArray bridge as an array', () => {
+  const h = harness();
+  const template = new h.ListTemplate({ sections: [] });
+  const sections = [{ header: 'Songs', items: [{ text: 'First', image: 12 }, { text: 'Second', images: [13, { uri: 'https://example.test/art.png' }] }] }];
+  const original = JSON.stringify(sections);
+  template.updateSections(sections);
+  const [id, payload] = h.sectionUpdates[0];
+  assert.equal(id, template.id);
+  assert.equal(Array.isArray(payload), true);
+  assert.equal(payload.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(payload)), [{ header: 'Songs', items: [{ text: 'First', image: { uri: 'asset://12' } }, { text: 'Second', images: [{ uri: 'asset://13' }, { uri: 'https://example.test/art.png' }] }] }]);
+  assert.equal(JSON.stringify(sections), original);
+  assert.equal(template.config.sections, sections);
+});
+
+test('empty section updates clear the list with an empty NSArray', () => {
+  const h = harness();
+  const template = new h.ListTemplate({ sections: [{ items: [{ text: 'Old' }] }] });
+  template.updateSections([]);
+  assert.equal(Array.isArray(h.sectionUpdates[0][1]), true);
+  assert.equal(h.sectionUpdates[0][1].length, 0);
+  assert.equal(template.config.sections.length, 0);
+});
 
 test('out-of-order searches complete their own token and discard stale rows', async () => {
   const h = harness(), a = deferred(), b = deferred();
