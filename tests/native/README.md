@@ -2,6 +2,17 @@
 
 Run `python3 tests/native/run-regressions.py` on macOS with Xcode.
 
+Run `python3 tests/native/run-image-regressions.py` for optional artwork failures.
+It compiles the production converter, list updater and row parser, including the
+exact Foundation expression that throws in React Native for missing local images.
+It checks that placeholders and row positions survive failures, other row fields
+still update, valid images retain the stock converter's result, remote loading
+stays asynchronous, and unrelated native exceptions are not hidden. An optional
+package-root argument exercises a consumer installation or the unpatched package.
+`python3 tests/native/check-image-sdk.py` also syntax-checks the production
+converter against real UIKit/CarPlay SDK types with only the React declarations
+stubbed; it does not launch an app or prove a full consumer build.
+
 Run `python3 -m unittest discover -s tests/native -p test_source_methods.py`
 on any host to check extraction of method implementations. Class-extension
 prototypes must be skipped: otherwise the request harness can accidentally
