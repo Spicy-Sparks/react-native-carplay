@@ -5,6 +5,7 @@
 
 @interface RCTConvert (RNCarPlay)
 
++ (UIImage * _Nullable)RNCPUIImage:(id _Nullable)json;
 + (CPTripEstimateStyle)CPTripEstimateStyle:(id)json;
 + (CPPanDirection)CPPanDirection:(id)json;
 + (CPAssistantCellPosition)CPAssistantCellPosition:(id)json;

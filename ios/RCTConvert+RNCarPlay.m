@@ -1,8 +1,27 @@
 #import "RCTConvert+RNCarPlay.h"
 #import <React/RCTConvert+CoreLocation.h>
+#import <React/RCTLog.h>
 #import <Availability.h>
 
 @implementation RCTConvert (RNCarPlay)
+
++ (UIImage *)RNCPUIImage:(id)json {
+    if (json == nil || json == [NSNull null]) {
+        return nil;
+    }
+    @try {
+        return [self UIImage:json];
+    } @catch (NSException *exception) {
+        if (![exception.name isEqualToString:NSInvalidArgumentException]) {
+            @throw;
+        }
+        // Optional cache/OTA artwork may disappear. RN's local-file fallback can
+        // raise URLByAppendingPathComponent:nil for a hostless file:/// URL;
+        // contain image conversion errors here, not the whole template update.
+        RCTLogWarn(@"CarPlay could not load optional artwork (%@)", exception.name);
+        return nil;
+    }
+}
 
 RCT_ENUM_CONVERTER(CPTripEstimateStyle, (@{
                                            @"light": @(CPTripEstimateStyleLight),
@@ -40,11 +59,13 @@ RCT_ENUM_CONVERTER(CPAssistantCellActionType, (@{
     CPMapButton *mapButton = [[CPMapButton alloc] initWithHandler:handler];
 
     if ([json objectForKey:@"image"]) {
-        [mapButton setImage:[RCTConvert UIImage:json[@"image"]]];
+        UIImage *image = [RCTConvert RNCPUIImage:json[@"image"]];
+        if (image) [mapButton setImage:image];
     }
 
     if ([json objectForKey:@"focusedImage"]) {
-        [mapButton setFocusedImage:[RCTConvert UIImage:json[@"focusedImage"]]];
+        UIImage *image = [RCTConvert RNCPUIImage:json[@"focusedImage"]];
+        if (image) [mapButton setFocusedImage:image];
     }
 
     if ([json objectForKey:@"disabled"]) {

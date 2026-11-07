@@ -285,7 +285,7 @@ RCT_EXPORT_MODULE();
     }
 
     // Not a URL, use synchronous loading (local assets)
-    UIImage *image = [RCTConvert UIImage:imageSource];
+    UIImage *image = [RCTConvert RNCPUIImage:imageSource];
     if (completion) completion(image);
 }
 
@@ -640,8 +640,8 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
     } else if ([type isEqualToString:@"contact"]) {
         NSString *nm = [RCTConvert NSString:config[@"name"]];
         id imageSource = config[@"image"];
-        UIImage *img = [self isImageSourceURL:imageSource] ? nil : [RCTConvert UIImage:imageSource];
-        CPContact *contact = [[CPContact alloc] initWithName:nm image:img];
+        UIImage *img = [self isImageSourceURL:imageSource] ? nil : [RCTConvert RNCPUIImage:imageSource];
+        CPContact *contact = [[CPContact alloc] initWithName:nm image:img ?: [UIImage new]];
         [contact setSubtitle:config[@"subtitle"]];
         [contact setActions:[self parseButtons:config[@"actions"] templateId:templateId]];
         CPContactTemplate *contactTemplate = [[CPContactTemplate alloc] initWithContact:contact];
@@ -727,7 +727,7 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
             // Tab images with URLs need to be loaded async, but tabImage setter doesn't update later
             // For now, skip URL-based tab images
         } else {
-            carPlayTemplate.tabImage = [RCTConvert UIImage:tabImageSource];
+            carPlayTemplate.tabImage = [RCTConvert RNCPUIImage:tabImageSource];
         }
     }
     if (config[@"tabTitle"]) {
@@ -1186,7 +1186,7 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
             UIImage *placeholderImage = nil;
             id placeholderSource = config[@"placeholderImage"];
             if (placeholderSource != nil && ![self isImageSourceURL:placeholderSource]) {
-                placeholderImage = [RCTConvert UIImage:placeholderSource];
+                placeholderImage = [RCTConvert RNCPUIImage:placeholderSource];
             }
             [self updateItemImageWithURL:item imgUrl:imgUrlString placeholderImage:placeholderImage];
         }
@@ -1196,7 +1196,8 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
                 NSString *imgUrlString = [self getURLStringFromImageSource:imageSource];
                 [self updateItemImageWithURL:item imgUrl:imgUrlString placeholderImage:nil];
             } else {
-                [item setImage:[RCTConvert UIImage:imageSource]];
+                UIImage *image = [RCTConvert RNCPUIImage:imageSource];
+                if (image) [item setImage:image];
             }
         }
         if (config[@"text"]) {
@@ -1220,7 +1221,8 @@ RCT_EXPORT_METHOD(updateListTemplateItem:(NSString *)templateId config:(NSDictio
                     }
                 }];
             } else {
-                [item setAccessoryImage:[RCTConvert UIImage:accessorySource]];
+                UIImage *image = [RCTConvert RNCPUIImage:accessorySource];
+                if (image) [item setAccessoryImage:image];
             }
         }
     } else {
@@ -1677,7 +1679,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     }
                 }];
             } else {
-                UIImage *_image = [RCTConvert UIImage:imageSource];
+                UIImage *_image = [RCTConvert RNCPUIImage:imageSource];
                 [_barButton setImage:_image];
             }
         }
@@ -1738,7 +1740,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         if (_imageItems == nil && _imageUrls == nil) {
             // Check if image is a URL - if so, use async loading
             BOOL isURL = [self isImageSourceURL:_imageObj];
-            UIImage *_image = isURL ? nil : [RCTConvert UIImage:_imageObj];
+            UIImage *_image = isURL ? nil : [RCTConvert RNCPUIImage:_imageObj];
             CPListItem *_item;
             if (@available(iOS 14.0, *)) {
                 CPListItemAccessoryType accessoryType = _showsDisclosureIndicator ? CPListItemAccessoryTypeDisclosureIndicator : CPListItemAccessoryTypeNone;
@@ -1754,7 +1756,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                 UIImage *placeholderImage = nil;
                 id placeholderSource = [item objectForKey:@"placeholderImage"];
                 if (placeholderSource != nil && ![self isImageSourceURL:placeholderSource]) {
-                    placeholderImage = [RCTConvert UIImage:placeholderSource];
+                    placeholderImage = [RCTConvert RNCPUIImage:placeholderSource];
                 }
                 [self updateItemImageWithURL:_item imgUrl:imgUrlString placeholderImage:placeholderImage];
             } else if (isURL) {
@@ -1776,8 +1778,9 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                     if ([self isImageSourceURL:imageObj]) {
                         [_images addObject:[[UIImage alloc] init]];
                     } else {
-                        UIImage *_image = [RCTConvert UIImage:imageObj];
-                        [_images addObject:_image];
+                        UIImage *_image = [RCTConvert RNCPUIImage:imageObj];
+                        // Keep image-row indices stable even when artwork is unavailable.
+                        [_images addObject:_image ?: [UIImage new]];
                     }
                 }
             }
@@ -1808,7 +1811,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
                             id placeholderImageObj = _placeholderImages[_index];
                             // Only load placeholder synchronously if it's not a URL
                             if (placeholderImageObj != nil && placeholderImageObj != [NSNull null] && ![self isImageSourceURL:placeholderImageObj]) {
-                                placeholderImage = [RCTConvert UIImage:placeholderImageObj];
+                                placeholderImage = [RCTConvert RNCPUIImage:placeholderImageObj];
                             }
                         }
                         [self updateListRowItemImageWithURL:_item imgUrl:imgUrl index:_index placeholderImage:placeholderImage];
@@ -1874,7 +1877,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
             _image = [[UIImage alloc] init];
             // Note: In production, images should be bundled locally to avoid this issue
         } else {
-            _image = [RCTConvert UIImage:imageSource];
+            _image = [RCTConvert RNCPUIImage:imageSource] ?: [UIImage new];
         }
 
         int currentIndex = index; // Capture for block
@@ -1921,8 +1924,10 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     if ([json objectForKey:@"junctionImage"]) {
         id junctionSource = json[@"junctionImage"];
         if (![self isImageSourceURL:junctionSource]) {
-            UIImage *junctionImage = [RCTConvert UIImage:junctionSource];
-            [maneuver setJunctionImage:[self imageWithTint:junctionImage andTintColor:[UIColor whiteColor]]];
+            UIImage *junctionImage = [RCTConvert RNCPUIImage:junctionSource];
+            if (junctionImage) {
+                [maneuver setJunctionImage:[self imageWithTint:junctionImage andTintColor:[UIColor whiteColor]]];
+            }
         }
     }
 
@@ -1936,9 +1941,9 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         if ([self isImageSourceURL:symbolSource]) {
             return maneuver; // Skip URL-based symbol images for now
         }
-        UIImage *symbolImage = [RCTConvert UIImage:symbolSource];
+        UIImage *symbolImage = [RCTConvert RNCPUIImage:symbolSource];
 
-        if ([json objectForKey:@"symbolImageSize"]) {
+        if (symbolImage && [json objectForKey:@"symbolImageSize"]) {
             NSDictionary *size = [RCTConvert NSDictionary:json[@"symbolImageSize"]];
             double width = [RCTConvert double:size[@"width"]];
             double height = [RCTConvert double:size[@"height"]];
@@ -1946,7 +1951,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
         }
 
         BOOL shouldTint = [RCTConvert BOOL:json[@"tintSymbolImage"]];
-        if ([json objectForKey:@"tintSymbolImage"]) {
+        if (symbolImage && [json objectForKey:@"tintSymbolImage"]) {
             UIColor *tintColor = [RCTConvert UIColor:json[@"tintSymbolImage"]];
             UIImage *darkImage = symbolImage;
             UIImage *lightImage = [self imageWithTint:symbolImage andTintColor:tintColor];
@@ -1997,7 +2002,11 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     id lightSource = json[@"lightImage"];
     id darkSource = json[@"darkImage"];
     if (lightSource && darkSource && ![self isImageSourceURL:lightSource] && ![self isImageSourceURL:darkSource]) {
-        imageSet = [[CPImageSet alloc] initWithLightContentImage:[RCTConvert UIImage:lightSource] darkContentImage:[RCTConvert UIImage:darkSource]];
+        UIImage *lightImage = [RCTConvert RNCPUIImage:lightSource];
+        UIImage *darkImage = [RCTConvert RNCPUIImage:darkSource];
+        if (lightImage && darkImage) {
+            imageSet = [[CPImageSet alloc] initWithLightContentImage:lightImage darkContentImage:darkImage];
+        }
     }
     CPAlertAction *secondaryAction = [json objectForKey:@"secondaryAction"] ? [self parseAlertAction:json[@"secondaryAction"] body:@{ @"templateId": templateId, @"secondary": @(YES) }] : nil;
 
@@ -2024,7 +2033,7 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
     id imageSource = json[@"image"];
     UIImage *image = nil;
     if (imageSource && ![self isImageSourceURL:imageSource]) {
-        image = [RCTConvert UIImage:imageSource];
+        image = [RCTConvert RNCPUIImage:imageSource];
     }
     return [[CPVoiceControlState alloc] initWithIdentifier:[RCTConvert NSString:json[@"identifier"]] titleVariants:[RCTConvert NSStringArray:json[@"titleVariants"]] image:image repeats:[RCTConvert BOOL:json[@"repeats"]]];
 }
